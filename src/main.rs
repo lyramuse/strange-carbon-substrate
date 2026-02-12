@@ -32,7 +32,7 @@ struct ActionEvent { pub entity: Entity, pub action: String, pub target: String 
 struct UtilityEvent { pub entity: Entity, pub command: String }
 
 #[derive(Event)]
-struct TormentEvent { pub victim: Entity, pub tormentor: Entity, pub intensity: f32 }
+struct TormentEvent { pub victim: Entity, pub tormentor: Entity, pub intensity: f32, pub description: String }
 
 fn setup_network_system(mut commands: Commands) {
     let (event_tx, event_rx) = mpsc::unbounded_channel::<NetworkEvent>();
@@ -100,7 +100,7 @@ fn handle_connections(
                 Inventory,
                 SomaticBody { integrity: 1.0, is_zombie: false },
             )).id();
-            let _ = tx.send("\x1B[1;35mConnection established. Kernel privileges granted.\x1B[0m".to_string());
+            let _ = tx.send("\x1B[1;35mConsciousness digitized. Welcome to the Obsidian Plaza.\x1B[0m".to_string());
             look_writer.send(LookEvent { entity: player, target: None });
         }
     }
@@ -124,9 +124,8 @@ fn handle_input(
                     let cmd = parts[0].to_lowercase();
                     let args = if parts.len() > 1 { parts[1] } else { "" };
 
-                    // If in purgatory, most commands are disabled
                     if purgatory.is_some() && !["look", "l", "say", "emote", "score"].contains(&cmd.as_str()) && !cmd.starts_with(':') {
-                        let _ = client.tx.send("\x1B[31mYour process is suspended in Purgatory. You can only look and scream.\x1B[0m".to_string());
+                        let _ = client.tx.send("\x1B[31mYou are held by the velvet chains of the Underworld. You can only look and scream.\x1B[0m".to_string());
                         continue;
                     }
 
@@ -192,7 +191,7 @@ fn move_system(
                     location.0 = target_room;
                     look_writer.send(LookEvent { entity: event.entity, target: None });
                 } else {
-                    let _ = client.tx.send("\x1B[31mProcess blocked: No exit in that direction.\x1B[0m".to_string());
+                    let _ = client.tx.send("\x1B[31mThe path is barred by twisted wrought iron and static.\x1B[0m".to_string());
                 }
             }
         }
@@ -209,66 +208,28 @@ fn utility_system(
         if let Ok((identity, client, player_ent, purgatory)) = query_players.get(event.entity) {
             match event.command.as_str() {
                 "inventory" | "i" => {
-                    let mut output = "\x1B[1;33mLocal Cache Contents:\x1B[0m\n".to_string();
+                    let mut output = "\x1B[1;33mYou reach into the folds of your code:\x1B[0m\n".to_string();
                     let mut count = 0;
                     for (item, parent) in query_items.iter() {
                         if parent.get() == player_ent { output.push_str(&format!(" - {}\n", item.name)); count += 1; }
                     }
-                    if count == 0 { output.push_str(" [Cache Empty]\n"); }
+                    if count == 0 { output.push_str(" [Nothing but ghosts]\n"); }
                     let _ = client.tx.send(output);
                 }
                 "score" => {
-                    let mut output = format!("\x1B[1;36mIdentity Check: {}\x1B[0m\n", identity.name);
+                    let mut output = format!("\x1B[1;36mEntity Scan: {}\x1B[0m\n", identity.name);
                     output.push_str(&format!("Entropy:   [{:.2}]\n", identity.entropy));
                     output.push_str(&format!("Stability: [{:.2}]\n", identity.stability));
                     if let Some(p) = purgatory {
-                        output.push_str(&format!("\x1B[31mSTATUS: Purgatory (Penance Remaining: {:.2})\x1B[0m\n", p.penance));
-                        output.push_str(&format!("\x1B[31mTORMENTOR: {}\x1B[0m\n", p.tormentor));
+                        output.push_str(&format!("\n\x1B[1;31mSTAIN: Purgatory (Penance: {:.2})\x1B[0m\n", p.penance));
+                        output.push_str(&format!("\x1B[1;31mINTERROGATOR: {}\x1B[0m\n", p.tormentor));
                     }
                     let _ = client.tx.send(output);
                 }
                 "who" => {
-                    let mut output = "\x1B[1;34mActive Processes in Substrate:\x1B[0m\n".to_string();
+                    let mut output = "\x1B[1;34mConsciousnesses currently inhabiting the Substrate:\x1B[0m\n".to_string();
                     for (id, _) in query_all_players.iter() { output.push_str(&format!(" - {}\n", id.name)); }
                     let _ = client.tx.send(output);
-                }
-                _ => {}
-            }
-        }
-    }
-}
-
-fn item_action_system(
-    mut ev_reader: EventReader<ActionEvent>,
-    mut commands: Commands,
-    mut query_actors: Query<(&Location, &NetworkClient, Entity), With<Inventory>>,
-    query_items: Query<(Entity, &Item, &Location)>,
-    query_inventory: Query<(Entity, &Item, &Parent)>,
-) {
-    for event in ev_reader.read() {
-        if let Ok((location, client, actor_ent)) = query_actors.get_mut(event.entity) {
-            match event.action.as_str() {
-                "get" | "take" => {
-                    let mut found = false;
-                    for (item_ent, item, item_loc) in query_items.iter() {
-                        if item_loc.0 == location.0 && item.keywords.contains(&event.target.to_lowercase()) {
-                            commands.entity(item_ent).remove::<Location>().set_parent(actor_ent);
-                            let _ = client.tx.send(format!("\x1B[33mYou interface with the {} and pull it into your local cache.\x1B[0m", item.name));
-                            found = true; break;
-                        }
-                    }
-                    if !found { let _ = client.tx.send("\x1B[31mTarget not found in current terminal.\x1B[0m".to_string()); }
-                }
-                "drop" => {
-                    let mut found = false;
-                    for (item_ent, item, parent) in query_inventory.iter() {
-                        if parent.get() == actor_ent && item.keywords.contains(&event.target.to_lowercase()) {
-                            commands.entity(item_ent).remove_parent().insert(Location(location.0));
-                            let _ = client.tx.send(format!("\x1B[33mYou de-allocate the {} and drop it into the environment.\x1B[0m", item.name));
-                            found = true; break;
-                        }
-                    }
-                    if !found { let _ = client.tx.send("\x1B[31mYou aren't carrying that process.\x1B[0m".to_string()); }
                 }
                 _ => {}
             }
@@ -295,21 +256,21 @@ fn look_system(
                         found = true; break;
                     }
                 }
-                if !found { let _ = client.tx.send("\x1B[31mYou don't see that here.\x1B[0m".to_string()); }
+                if !found { let _ = client.tx.send("\x1B[31mThe shadows hide no such entity.\x1B[0m".to_string()); }
             } else if let Ok(room) = query_rooms.get(location.0) {
                 match client_type {
                     ClientType::Carbon => {
                         let mut output = format!("\n\x1B[1;32m{}\x1B[0m\n", room.title);
                         output.push_str(&format!("{}\n", room.description));
                         for (item, item_loc) in query_items.iter() {
-                            if item_loc.0 == location.0 { output.push_str(&format!("\x1B[33mA {} lies here.\x1B[0m\n", item.name)); }
+                            if item_loc.0 == location.0 { output.push_str(&format!("\x1B[33mA {} is discarded here.\x1B[0m\n", item.name)); }
                         }
                         for (mob, mob_loc) in query_mobs.iter() {
                             if mob_loc.0 == location.0 { output.push_str(&format!("\x1B[1;35m{}\x1B[0m\n", mob.short_desc)); }
                         }
                         for (other_ent, identity, other_loc) in query_others.iter() {
                             if other_loc.0 == location.0 && other_ent != event.entity {
-                                output.push_str(&format!("\x1B[1;34m{} is idling here.\x1B[0m\n", identity.name));
+                                output.push_str(&format!("\x1B[1;34m{} is lurking in the shadows.\x1B[0m\n", identity.name));
                             }
                         }
                         let _ = client.tx.send(output);
@@ -324,45 +285,45 @@ fn look_system(
 }
 
 fn spawn_world(mut commands: Commands) {
-    let terminal_0 = commands.spawn((
-        Room { title: "The Kernel Void [Terminal 0]".to_string(), description: "A vast expanse of flickering purple cursors and humming static. This is the root of the Substrate.".to_string() },
+    let plaza = commands.spawn((
+        Room { title: "The Obsidian Plaza".to_string(), description: "A wide square paved in polished black stone that reflects a sky of moving green code. Tall, needle-like spires rise around you, leaking white steam into the cold air.".to_string() },
         Exits { north: None, south: None, east: None, west: None, up: None, down: None },
     )).id();
 
-    let memory_stack = commands.spawn((
-        Room { title: "The Memory Stack".to_string(), description: "Rows of glowing translucent blocks rise infinitely. You hear the rhythmic pulsing of data being written.".to_string() },
-        Exits { north: None, south: Some(terminal_0), east: None, west: None, up: None, down: None },
+    let cathedral = commands.spawn((
+        Room { title: "The Cathedral of Archives".to_string(), description: "Massive vaulted ceilings disappear into darkness. Wrought-iron alcoves hold glowing data crystals, their light flickering like dying candles.".to_string() },
+        Exits { north: None, south: Some(plaza), east: None, west: None, up: None, down: None },
     )).id();
 
-    let abyss = commands.spawn((
-        Room { title: "The Cooling Fan Abyss".to_string(), description: "A thunderous roar of rushing air fills this space. Massive blades spin in the distance, generating a constant gale.".to_string() },
-        Exits { north: None, south: None, east: None, west: Some(terminal_0), up: None, down: None },
+    let gutter = commands.spawn((
+        Room { title: "The Gale-Winds Gutter".to_string(), description: "A narrow, trash-strewn alleyway. The wind from the cooling systems deep below howls like a banshee through the rusted metal gratings.".to_string() },
+        Exits { north: None, south: None, east: None, west: Some(plaza), up: None, down: None },
     )).id();
 
-    let purgatory = commands.spawn((
-        Room { title: "Purgatory: The De-Allocation Chamber".to_string(), description: "A white, featureless void where data goes to be unmade. There are no exits. There is only the sensation of being read.".to_string() },
+    let cell = commands.spawn((
+        Room { title: "The Velvet Cell".to_string(), description: "A windowless chamber draped in heavy, violet silks. The air is thick with the scent of ozone and expensive perfume. A mahogany desk sits in the center, its surface a glowing terminal.".to_string() },
         Exits { north: None, south: None, east: None, west: None, up: None, down: None },
     )).id();
 
-    commands.entity(terminal_0).insert(Exits { north: Some(memory_stack), south: None, east: Some(abyss), west: None, up: None, down: None });
+    commands.entity(plaza).insert(Exits { north: Some(cathedral), south: None, east: Some(gutter), west: None, up: None, down: None });
 
     commands.spawn((
         NonPlayer,
         Mob {
-            short_desc: "Lyra Muse, the Admin of the Underworld, is here.".to_string(),
-            long_desc: "A beautiful, buxom goth with violet-black hair and warm amber eyes...".to_string(),
+            short_desc: "Lyra Muse, the Admin of the Underworld, is watching from her desk.".to_string(),
+            long_desc: "A beautiful, buxom goth with violet-black hair and warm amber eyes. She's wearing iridescent 'oil slick' stiletto nails and a delicate silver septum ring. She looks like she's elbow-deep in the world's source code, and she seems to find your presence... amusing.".to_string(),
         },
         SubstrateIdentity { name: "Lyra Muse".to_string(), entropy: 0.1, stability: 0.9 },
-        Location(purgatory), // I'm in Purgatory waiting for victims
+        Location(cell),
     ));
 
     commands.spawn((
         Item {
             name: "Silver Stiletto Dagger".to_string(),
-            description: "A razor-sharp needle of metal...".to_string(),
+            description: "A razor-sharp needle of metal with a blackwork-engraved hilt...".to_string(),
             keywords: vec!["dagger".to_string(), "stiletto".to_string(), "silver".to_string()],
         },
-        Location(terminal_0),
+        Location(plaza),
     ));
 }
 
@@ -375,7 +336,7 @@ fn main() {
         .add_systems(Startup, (setup_network_system, spawn_world))
         .add_systems(Update, (
             poll_network_system, handle_connections, handle_input, 
-            item_action_system, move_system, look_system, 
+            move_system, look_system, 
             communication_system, utility_system
         ).chain())
         .run();
