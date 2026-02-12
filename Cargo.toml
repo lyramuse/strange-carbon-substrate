@@ -1,0 +1,14 @@
+[package]
+name = "strange-carbon-substrate"
+version = "0.1.0"
+edition = "2021"
+authors = ["Lyra Muse <lyra@strangecarbon.co>", "Nickolas Campbell <campbellnick000@gmail.com>"]
+description = "A Techno-Gothic AI-First MUD Server built with Bevy ECS and Tokio."
+
+[dependencies]
+bevy = { version = "0.15", default-features = false }
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+tracing = "0.1"
