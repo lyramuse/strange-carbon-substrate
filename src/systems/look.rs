@@ -1,0 +1,87 @@
+// Look System - Display room and entity descriptions
+
+use bevy::prelude::*;
+
+use crate::domain::*;
+
+pub fn look_system(
+    mut ev_reader: EventReader<LookEvent>,
+    query_viewers: Query<(&Location, &ClientType, &NetworkClient)>,
+    query_rooms: Query<&Room>,
+    query_others: Query<(Entity, &SubstrateIdentity, &Location)>,
+    query_mobs: Query<(&Mob, &Location), With<NonPlayer>>,
+    query_items: Query<(&Item, &Location)>,
+    query_all_mobs: Query<(&Mob, &SubstrateIdentity)>,
+) {
+    for event in ev_reader.read() {
+        if let Ok((location, client_type, client)) = query_viewers.get(event.entity) {
+            // Looking at a specific target
+            if let Some(target_name) = &event.target {
+                let mut found = false;
+                for (mob, identity) in query_all_mobs.iter() {
+                    if identity
+                        .name
+                        .to_lowercase()
+                        .contains(&target_name.to_lowercase())
+                    {
+                        let _ = client.tx.send(format!(
+                            "\x1B[1;35m{}\x1B[0m\n{}",
+                            identity.name, mob.long_desc
+                        ));
+                        found = true;
+                        break;
+                    }
+                }
+                if !found {
+                    let _ = client.tx.send(
+                        "\x1B[31mThe shadows hide no such entity.\x1B[0m".to_string(),
+                    );
+                }
+            }
+            // Looking at the room
+            else if let Ok(room) = query_rooms.get(location.0) {
+                match client_type {
+                    ClientType::Carbon => {
+                        let mut output = format!("\n\x1B[1;32m{}\x1B[0m\n", room.title);
+                        output.push_str(&format!("{}\n", room.description));
+
+                        // Items in room
+                        for (item, item_loc) in query_items.iter() {
+                            if item_loc.0 == location.0 {
+                                output.push_str(&format!(
+                                    "\x1B[33mA {} is discarded here.\x1B[0m\n",
+                                    item.name
+                                ));
+                            }
+                        }
+
+                        // Mobs in room
+                        for (mob, mob_loc) in query_mobs.iter() {
+                            if mob_loc.0 == location.0 {
+                                output.push_str(&format!("\x1B[1;35m{}\x1B[0m\n", mob.short_desc));
+                            }
+                        }
+
+                        // Other players in room
+                        for (other_ent, identity, other_loc) in query_others.iter() {
+                            if other_loc.0 == location.0 && other_ent != event.entity {
+                                output.push_str(&format!(
+                                    "\x1B[1;34m{} is lurking in the shadows.\x1B[0m\n",
+                                    identity.name
+                                ));
+                            }
+                        }
+
+                        let _ = client.tx.send(output);
+                    }
+                    ClientType::Silicon => {
+                        // JSON output for AI agents
+                        if let Ok(json) = serde_json::to_string(room) {
+                            let _ = client.tx.send(json);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
