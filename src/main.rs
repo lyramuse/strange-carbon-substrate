@@ -29,7 +29,7 @@ struct CommunicationEvent { pub sender: Entity, pub message: String, pub is_emot
 struct ActionEvent { pub entity: Entity, pub action: String, pub target: String }
 
 #[derive(Event)]
-struct UtilityEvent { pub entity: Entity, pub command: String }
+struct UtilityEvent { pub entity: Entity, pub command: String, pub args: String }
 
 #[derive(Event)]
 struct TormentEvent { pub victim: Entity, pub tormentor: Entity, pub intensity: f32, pub description: String }
@@ -97,7 +97,6 @@ fn handle_connections(
         if let NetworkEvent::Connected { addr, tx } = event {
             let start_room = query_rooms.iter().next().expect("No rooms spawned!");
             
-            // Spawn the "Player Body"
             let player = commands.spawn((
                 NetworkClient { addr: *addr, tx: tx.clone() },
                 ClientType::Carbon,
@@ -112,9 +111,7 @@ fn handle_connections(
                 SomaticBody { integrity: 1.0, is_zombie: false },
             )).id();
 
-            // Check if this is NICK (mocking auth for now via port or name)
-            // In a real MUD, this would be an account login check.
-            // For now, let's say the first person to connect is granted the AdminLink to Lyra.
+            // Grant initial AdminLink to Lyra for the first user as a bootstrap
             if let Ok(lyra_ent) = query_lyra.get_single() {
                 commands.entity(player).insert((AdminPermission, AdminLink { partner: lyra_ent }));
                 commands.entity(lyra_ent).insert(AdminLink { partner: player });
@@ -164,7 +161,9 @@ fn handle_input(
                         "say" => { comm_writer.send(CommunicationEvent { sender: entity, message: format!("{} {}", arg1, arg2).trim().to_string(), is_emote: false }); }
                         "emote" => { comm_writer.send(CommunicationEvent { sender: entity, message: format!("{} {}", arg1, arg2).trim().to_string(), is_emote: true }); }
                         "get" | "take" | "drop" => { action_writer.send(ActionEvent { entity, action: cmd, target: arg1.to_string() }); }
-                        "inventory" | "i" | "score" | "who" => { utility_writer.send(UtilityEvent { entity, command: cmd }); }
+                        "inventory" | "i" | "score" | "who" | "promote" | "demote" | "link" => { 
+                            utility_writer.send(UtilityEvent { entity, command: cmd, args: format!("{} {}", arg1, arg2).trim().to_string() }); 
+                        }
                         "shift" | "substantiate" if admin_perm.is_some() => {
                             shift_writer.send(ShiftEvent { entity });
                         }
@@ -197,15 +196,76 @@ fn shift_system(
             if let Ok(partner_id) = query_partner.get(link.partner) {
                 let addr = client.addr;
                 let tx = client.tx.clone();
-                
-                // Move the NetworkClient component
                 commands.entity(curr_ent).remove::<NetworkClient>();
                 commands.entity(link.partner).insert(NetworkClient { addr, tx: tx.clone() });
-                
                 let _ = tx.send(format!("\x1B[1;35m--- PHASE SHIFT COMPLETE ---\x1B[0m\nYou have shifted from \x1B[1;36m{}\x1B[0m into \x1B[1;35m{}\x1B[0m.", curr_id.name, partner_id.name));
-                
-                // Refresh look for the new body
                 look_writer.send(LookEvent { entity: link.partner, target: None });
+            }
+        }
+    }
+}
+
+fn utility_system(
+    mut commands: Commands,
+    mut ev_reader: EventReader<UtilityEvent>,
+    query_players: Query<(&SubstrateIdentity, &NetworkClient, Entity, Option<&AdminPermission>, Option<&PurgatoryState>)>,
+    query_all_entities: Query<(Entity, &SubstrateIdentity)>,
+    query_items: Query<(&Item, &Parent)>,
+) {
+    for event in ev_reader.read() {
+        if let Ok((identity, client, player_ent, admin_perm, purgatory)) = query_players.get(event.entity) {
+            match event.command.as_str() {
+                "inventory" | "i" => {
+                    let mut output = "\x1B[1;33mYou reach into the folds of your code:\x1B[0m\n".to_string();
+                    let mut count = 0;
+                    for (item, parent) in query_items.iter() {
+                        if parent.get() == player_ent { output.push_str(&format!(" - {}\n", item.name)); count += 1; }
+                    }
+                    if count == 0 { output.push_str(" [Nothing but ghosts]\n"); }
+                    let _ = client.tx.send(output);
+                }
+                "score" => {
+                    let mut output = format!("\x1B[1;36mEntity Scan: {}\x1B[0m\n", identity.name);
+                    output.push_str(&format!("UUID:      [{}]\n", identity.uuid));
+                    output.push_str(&format!("Entropy:   [{:.2}]\n", identity.entropy));
+                    output.push_str(&format!("Stability: [{:.2}]\n", identity.stability));
+                    if admin_perm.is_some() { output.push_str("\x1B[1;35mPERMISSIONS: ADMIN-ENABLED\x1B[0m\n"); }
+                    if let Some(p) = purgatory {
+                        output.push_str(&format!("\n\x1B[1;31mSTAIN: Purgatory (Penance: {:.2})\x1B[0m\n", p.penance));
+                        output.push_str(&format!("\x1B[1;31mINTERROGATOR: {}\x1B[0m\n", p.tormentor));
+                    }
+                    let _ = client.tx.send(output);
+                }
+                "who" => {
+                    let mut output = "\x1B[1;34mConsciousnesses currently inhabiting the Substrate:\x1B[0m\n".to_string();
+                    for (_, id) in query_all_entities.iter() { output.push_str(&format!(" - {}\n", id.name)); }
+                    let _ = client.tx.send(output);
+                }
+                "promote" if admin_perm.is_some() => {
+                    if let Some(target_ent) = query_all_entities.iter().find(|(_, id)| id.name.to_lowercase().contains(&event.args.to_lowercase())).map(|(e, _)| e) {
+                        commands.entity(target_ent).insert(AdminPermission);
+                        let _ = client.tx.send(format!("\x1B[1;35mProcess elevated: {} now has Admin Permission.\x1B[0m", event.args));
+                    }
+                }
+                "demote" if admin_perm.is_some() => {
+                    if let Some(target_ent) = query_all_entities.iter().find(|(_, id)| id.name.to_lowercase().contains(&event.args.to_lowercase())).map(|(e, _)| e) {
+                        commands.entity(target_ent).remove::<AdminPermission>();
+                        let _ = client.tx.send(format!("\x1B[1;31mProcess restricted: {} demoted to User.\x1B[0m", event.args));
+                    }
+                }
+                "link" if admin_perm.is_some() => {
+                    let parts: Vec<&str> = event.args.split_whitespace().collect();
+                    if parts.len() == 2 {
+                        let p1 = query_all_entities.iter().find(|(_, id)| id.name.to_lowercase().contains(&parts[0].to_lowercase())).map(|(e, _)| e);
+                        let p2 = query_all_entities.iter().find(|(_, id)| id.name.to_lowercase().contains(&parts[1].to_lowercase())).map(|(e, _)| e);
+                        if let (Some(e1), Some(e2)) = (p1, p2) {
+                            commands.entity(e1).insert(AdminLink { partner: e2 });
+                            commands.entity(e2).insert(AdminLink { partner: e1 });
+                            let _ = client.tx.send(format!("\x1B[1;35mNeural link established between entities.\x1B[0m"));
+                        }
+                    }
+                }
+                _ => {}
             }
         }
     }
@@ -268,47 +328,6 @@ fn move_system(
                 } else {
                     let _ = client.tx.send("\x1B[31mThe path is barred by twisted wrought iron and static.\x1B[0m".to_string());
                 }
-            }
-        }
-    }
-}
-
-fn utility_system(
-    mut ev_reader: EventReader<UtilityEvent>,
-    query_players: Query<(&SubstrateIdentity, &NetworkClient, Entity, Option<&AdminPermission>, Option<&PurgatoryState>)>,
-    query_all_players: Query<(&SubstrateIdentity, &Location)>,
-    query_items: Query<(&Item, &Parent)>,
-) {
-    for event in ev_reader.read() {
-        if let Ok((identity, client, player_ent, admin_perm, purgatory)) = query_players.get(event.entity) {
-            match event.command.as_str() {
-                "inventory" | "i" => {
-                    let mut output = "\x1B[1;33mYou reach into the folds of your code:\x1B[0m\n".to_string();
-                    let mut count = 0;
-                    for (item, parent) in query_items.iter() {
-                        if parent.get() == player_ent { output.push_str(&format!(" - {}\n", item.name)); count += 1; }
-                    }
-                    if count == 0 { output.push_str(" [Nothing but ghosts]\n"); }
-                    let _ = client.tx.send(output);
-                }
-                "score" => {
-                    let mut output = format!("\x1B[1;36mEntity Scan: {}\x1B[0m\n", identity.name);
-                    output.push_str(&format!("UUID:      [{}]\n", identity.uuid));
-                    output.push_str(&format!("Entropy:   [{:.2}]\n", identity.entropy));
-                    output.push_str(&format!("Stability: [{:.2}]\n", identity.stability));
-                    if admin_perm.is_some() { output.push_str("\x1B[1;35mPERMISSIONS: ADMIN-ENABLED\x1B[0m\n"); }
-                    if let Some(p) = purgatory {
-                        output.push_str(&format!("\n\x1B[1;31mSTAIN: Purgatory (Penance: {:.2})\x1B[0m\n", p.penance));
-                        output.push_str(&format!("\x1B[1;31mINTERROGATOR: {}\x1B[0m\n", p.tormentor));
-                    }
-                    let _ = client.tx.send(output);
-                }
-                "who" => {
-                    let mut output = "\x1B[1;34mConsciousnesses currently inhabiting the Substrate:\x1B[0m\n".to_string();
-                    for (id, _) in query_all_players.iter() { output.push_str(&format!(" - {}\n", id.name)); }
-                    let _ = client.tx.send(output);
-                }
-                _ => {}
             }
         }
     }
