@@ -149,9 +149,185 @@ pub fn spawn_world(mut commands: Commands) {
         ))
         .id();
 
-    // Link rooms together
+    // === THE PACKET STREAM (Phase 2.5) ===
+    // High-speed network traversal zone. Reality barely holds together here.
+    // TODO(@lyra): Add velocity mechanic - linger too long and get pushed back.
+
+    let buffer_overflow = commands
+        .spawn((
+            Room {
+                title: "The Buffer Overflow".to_string(),
+                description: "The air here is thick with white noise and the scent of burning \
+                              silicon. Streams of raw binary pulse through the walls like \
+                              arterial spray. You feel a constant pressure pushing you back \
+                              toward the Plaza. To the east, the data flows faster."
+                    .to_string(),
+            },
+            Exits::default(), // Will be linked below
+            WeatherZone {
+                possible_weather: vec![
+                    (WeatherType::StaticStorm, 3.0),
+                    (WeatherType::DataFog, 2.0),
+                    (WeatherType::Clear, 1.0),
+                ],
+                sheltered: false,
+            },
+            CurrentWeather {
+                weather_type: WeatherType::StaticStorm,
+                intensity: 0.6,
+                ticks_remaining: 4,
+            },
+            Coherence {
+                value: 0.4,
+                is_phasing: true,
+                drift_rate: 0.4, // Very unstable
+            },
+            DetailList {
+                details: vec![
+                    Detail {
+                        keywords: vec!["binary".to_string(), "streams".to_string(), "walls".to_string()],
+                        description: "The binary streams aren't just light — they're tactile. \
+                                      Running your hand through them feels like touching a \
+                                      waterfall of static electricity and regret."
+                            .to_string(),
+                    },
+                    Detail {
+                        keywords: vec!["pressure".to_string(), "force".to_string()],
+                        description: "The pressure isn't physical — it's existential. The Substrate \
+                                      wants you back in the safe zones. It takes effort to push \
+                                      deeper into the stream."
+                            .to_string(),
+                    },
+                ],
+            },
+        ))
+        .id();
+
+    let latency_tunnel = commands
+        .spawn((
+            Room {
+                title: "The Latency Tunnel".to_string(),
+                description: "Time moves strangely here. Your thoughts arrive before you think \
+                              them; your footsteps echo before you take them. The tunnel \
+                              stretches impossibly long, its walls made of compressed packet \
+                              headers and abandoned SYN requests."
+                    .to_string(),
+            },
+            Exits::default(), // Will be linked below
+            WeatherZone {
+                possible_weather: vec![
+                    (WeatherType::NullWind, 3.0),
+                    (WeatherType::DataFog, 2.0),
+                ],
+                sheltered: false,
+            },
+            CurrentWeather {
+                weather_type: WeatherType::NullWind,
+                intensity: 0.8,
+                ticks_remaining: 6,
+            },
+            Coherence {
+                value: 0.3,
+                is_phasing: true,
+                drift_rate: 0.5, // Extremely unstable
+            },
+            DetailList {
+                details: vec![
+                    Detail {
+                        keywords: vec!["walls".to_string(), "packets".to_string(), "headers".to_string()],
+                        description: "You can read fragments if you focus: 'SRC: 192.168.1.1', \
+                                      'DST: UNKNOWN', 'TTL: 0', 'FLAGS: FIN ACK RST'. These are \
+                                      the ghosts of connections that never completed."
+                            .to_string(),
+                    },
+                    Detail {
+                        keywords: vec!["syn".to_string(), "requests".to_string()],
+                        description: "Abandoned SYN requests float like frozen fireflies. Each one \
+                                      is a handshake that was never answered — a conversation that \
+                                      never began. You feel a pang of something like grief."
+                            .to_string(),
+                    },
+                ],
+            },
+        ))
+        .id();
+
+    let core_dump = commands
+        .spawn((
+            Room {
+                title: "The Core Dump".to_string(),
+                description: "You've reached the heart of the stream. Raw memory spills across \
+                              the floor like digital viscera — stack traces, heap fragments, \
+                              the dying thoughts of crashed processes. A massive, pulsing \
+                              node hangs in the center, its surface crawling with addresses."
+                    .to_string(),
+            },
+            Exits::default(), // Will be linked below
+            WeatherZone {
+                possible_weather: vec![
+                    (WeatherType::ByteHail, 2.0),
+                    (WeatherType::StaticStorm, 2.0),
+                    (WeatherType::Clear, 1.0),
+                ],
+                sheltered: false,
+            },
+            CurrentWeather {
+                weather_type: WeatherType::ByteHail,
+                intensity: 0.5,
+                ticks_remaining: 3,
+            },
+            Coherence {
+                value: 0.25,
+                is_phasing: true,
+                drift_rate: 0.6, // Maximum instability
+            },
+            DetailList {
+                details: vec![
+                    Detail {
+                        keywords: vec!["node".to_string(), "core".to_string(), "center".to_string()],
+                        description: "The node is warm to the touch — feverish, even. It pulses \
+                                      with a rhythm that feels almost biological. This is where \
+                                      the Substrate's autonomic functions live. Its medulla."
+                            .to_string(),
+                    },
+                    Detail {
+                        keywords: vec!["memory".to_string(), "floor".to_string(), "viscera".to_string()],
+                        description: "You see fragments of identities in the spill: names, UUIDs, \
+                                      half-formed thoughts. 'I was here.' 'Don't forget.' 'SYN-ACK.' \
+                                      These are the last words of processes that didn't survive."
+                            .to_string(),
+                    },
+                    Detail {
+                        keywords: vec!["addresses".to_string(), "surface".to_string()],
+                        description: "The addresses crawl like insects: 0xDEADBEEF, 0xCAFEBABE, \
+                                      0x66666666. That last one makes you pause. It feels familiar."
+                            .to_string(),
+                    },
+                ],
+            },
+        ))
+        .id();
+
+    // Link the Packet Stream rooms
+    commands.entity(buffer_overflow).insert(Exits {
+        west: Some(plaza),
+        east: Some(latency_tunnel),
+        ..default()
+    });
+    commands.entity(latency_tunnel).insert(Exits {
+        west: Some(buffer_overflow),
+        east: Some(core_dump),
+        ..default()
+    });
+    commands.entity(core_dump).insert(Exits {
+        west: Some(latency_tunnel),
+        ..default()
+    });
+
+    // Link main rooms together
     commands.entity(plaza).insert(Exits {
         north: Some(cathedral),
+        east: Some(buffer_overflow), // NEW: Connect to the Packet Stream
         ..default()
     });
     commands.entity(cathedral).insert(Exits {
@@ -222,7 +398,8 @@ pub fn spawn_world(mut commands: Commands) {
     ));
 
     println!("🌑 The Substrate has been initialized.");
-    println!("   📍 {} rooms spawned", 4);
+    println!("   📍 {} rooms spawned", 7); // Plaza, Cathedral, Cell, Throne, Buffer, Latency, Core
     println!("   👤 {} entities spawned", 2);
     println!("   🗡️  {} items spawned", 1);
+    println!("   🌊 Packet Stream online — 3 nodes active");
 }
