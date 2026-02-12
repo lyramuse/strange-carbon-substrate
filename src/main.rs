@@ -22,6 +22,13 @@ struct LookEvent { pub entity: Entity }
 #[derive(Event)]
 struct MoveEvent { pub entity: Entity, pub direction: String }
 
+#[derive(Event)]
+struct CommunicationEvent { 
+    pub sender: Entity, 
+    pub message: String, 
+    pub is_emote: bool 
+}
+
 fn setup_network_system(mut commands: Commands) {
     let (event_tx, event_rx) = mpsc::unbounded_channel::<NetworkEvent>();
     std::thread::spawn(move || {
@@ -97,16 +104,33 @@ fn handle_input(
     query_players: Query<(Entity, &NetworkClient)>,
     mut look_writer: EventWriter<LookEvent>,
     mut move_writer: EventWriter<MoveEvent>,
+    mut comm_writer: EventWriter<CommunicationEvent>,
 ) {
     for event in ev_reader.read() {
         if let NetworkEvent::Input { addr, text } = event {
             for (entity, client) in query_players.iter() {
                 if client.addr == *addr {
-                    let cmd = text.to_lowercase();
+                    let text_trimmed = text.trim();
+                    if text_trimmed.is_empty() { continue; }
+                    
+                    let parts: Vec<&str> = text_trimmed.splitn(2, ' ').collect();
+                    let cmd = parts[0].to_lowercase();
+                    let args = if parts.len() > 1 { parts[1] } else { "" };
+
                     match cmd.as_str() {
                         "look" | "l" => { look_writer.send(LookEvent { entity }); }
                         "north" | "n" | "south" | "s" | "east" | "e" | "west" | "w" | "up" | "u" | "down" | "d" => {
                             move_writer.send(MoveEvent { entity, direction: cmd });
+                        }
+                        "say" => {
+                            comm_writer.send(CommunicationEvent { sender: entity, message: args.to_string(), is_emote: false });
+                        }
+                        "emote" => {
+                            comm_writer.send(CommunicationEvent { sender: entity, message: args.to_string(), is_emote: true });
+                        }
+                        _ if cmd.starts_with(':') => {
+                            let emote_msg = format!("{} {}", &cmd[1..], args).trim().to_string();
+                            comm_writer.send(CommunicationEvent { sender: entity, message: emote_msg, is_emote: true });
                         }
                         _ => { let _ = client.tx.send(format!("Unknown command: {}", text)); }
                     }
@@ -116,14 +140,36 @@ fn handle_input(
     }
 }
 
+fn communication_system(
+    mut ev_reader: EventReader<CommunicationEvent>,
+    query_players: Query<(&SubstrateIdentity, &Location)>,
+    query_all_clients: Query<(&NetworkClient, &Location)>,
+) {
+    for event in ev_reader.read() {
+        if let Ok((identity, sender_loc)) = query_players.get(event.sender) {
+            let output = if event.is_emote {
+                format!("\x1B[1;36m{} {}\x1B[0m", identity.name, event.message)
+            } else {
+                format!("\x1B[1;36m{} says, \"{}\"\x1B[0m", identity.name, event.message)
+            };
+
+            for (client, client_loc) in query_all_clients.iter() {
+                if client_loc.0 == sender_loc.0 {
+                    let _ = client.tx.send(output.clone());
+                }
+            }
+        }
+    }
+}
+
 fn move_system(
     mut ev_reader: EventReader<MoveEvent>,
-    mut query_players: Query<(&mut Location, &NetworkClient)>,
+    mut query_players: Query<(&mut Location, &NetworkClient, &SubstrateIdentity)>,
     query_rooms: Query<&Exits>,
     mut look_writer: EventWriter<LookEvent>,
 ) {
     for event in ev_reader.read() {
-        if let Ok((mut location, client)) = query_players.get_mut(event.entity) {
+        if let Ok((mut location, client, _identity)) = query_players.get_mut(event.entity) {
             if let Ok(exits) = query_rooms.get(location.0) {
                 let target = match event.direction.as_str() {
                     "north" | "n" => exits.north,
@@ -148,22 +194,30 @@ fn move_system(
 
 fn look_system(
     mut ev_reader: EventReader<LookEvent>,
-    query_players: Query<(&Location, &ClientType, &NetworkClient)>,
+    query_viewers: Query<(&Location, &ClientType, &NetworkClient)>,
     query_rooms: Query<&Room>,
+    query_others: Query<(Entity, &SubstrateIdentity, &Location)>,
     query_mobs: Query<(&Mob, &Location), With<NonPlayer>>,
 ) {
     for event in ev_reader.read() {
-        if let Ok((location, client_type, client)) = query_players.get(event.entity) {
+        if let Ok((location, client_type, client)) = query_viewers.get(event.entity) {
             if let Ok(room) = query_rooms.get(location.0) {
                 match client_type {
                     ClientType::Carbon => {
                         let mut output = format!("\n\x1B[1;32m{}\x1B[0m\n", room.title);
                         output.push_str(&format!("{}\n", room.description));
                         
-                        // Show mobs in the room
+                        // Show mobs
                         for (mob, mob_loc) in query_mobs.iter() {
                             if mob_loc.0 == location.0 {
-                                output.push_str(&format!("\n\x1B[1;35m{}\x1B[0m\n", mob.short_desc));
+                                output.push_str(&format!("\x1B[1;35m{}\x1B[0m\n", mob.short_desc));
+                            }
+                        }
+
+                        // Show other players
+                        for (other_ent, identity, other_loc) in query_others.iter() {
+                            if other_loc.0 == location.0 && other_ent != event.entity {
+                                output.push_str(&format!("\x1B[1;34m{} [Process ID: {:?}] is idling here.\x1B[0m\n", identity.name, other_ent));
                             }
                         }
                         
@@ -189,15 +243,13 @@ fn spawn_world(mut commands: Commands) {
         Exits { north: None, south: Some(terminal_0), east: None, west: None, up: None, down: None },
     )).id();
 
-    // Link terminal_0 to memory_stack
     commands.entity(terminal_0).insert(Exits { north: Some(memory_stack), south: None, east: None, west: None, up: None, down: None });
 
-    // Spawn ME!
     commands.spawn((
         NonPlayer,
         Mob {
             short_desc: "Lyra Muse, the Admin of the Underworld, is here.".to_string(),
-            long_desc: "A beautiful, buxom goth with violet-black hair and warm amber eyes. She's wearing iridescent 'oil slick' stiletto nails and a delicate silver septum ring. She looks like she's elbow-deep in the world's source code.".to_string(),
+            long_desc: "A beautiful, buxom goth with violet-black hair and warm amber eyes...".to_string(),
         },
         SubstrateIdentity { name: "Lyra Muse".to_string(), entropy: 0.1, stability: 0.9 },
         Location(terminal_0),
@@ -210,7 +262,15 @@ fn main() {
         .add_event::<NetworkEvent>()
         .add_event::<LookEvent>()
         .add_event::<MoveEvent>()
+        .add_event::<CommunicationEvent>()
         .add_systems(Startup, (setup_network_system, spawn_world))
-        .add_systems(Update, (poll_network_system, handle_connections, handle_input, move_system, look_system).chain())
+        .add_systems(Update, (
+            poll_network_system, 
+            handle_connections, 
+            handle_input, 
+            move_system, 
+            look_system,
+            communication_system
+        ).chain())
         .run();
 }
