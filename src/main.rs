@@ -90,31 +90,37 @@ fn handle_connections(
     mut commands: Commands,
     mut ev_reader: EventReader<NetworkEvent>,
     query_rooms: Query<Entity, With<Room>>,
-    query_lyra: Query<Entity, (With<SubstrateIdentity>, With<NonPlayer>)>,
+    query_avatars: Query<(Entity, &SubstrateIdentity), With<NonPlayer>>,
     mut look_writer: EventWriter<LookEvent>,
 ) {
     for event in ev_reader.read() {
         if let NetworkEvent::Connected { addr, tx } = event {
             let start_room = query_rooms.iter().next().expect("No rooms spawned!");
             
+            // In a real build, we'd check credentials. For Phase 1:
+            // If the port is a specific "Nick-Port" or name, we assign his specific avatar.
+            let is_nick = addr.port() == 4001; // Logic for "Nick"
+
             let player = commands.spawn((
                 NetworkClient { addr: *addr, tx: tx.clone() },
                 ClientType::Carbon,
                 SubstrateIdentity { 
-                    uuid: format!("user-{}", addr.port()),
-                    name: format!("Carbon-{}", addr.port()), 
-                    entropy: 0.5, 
-                    stability: 0.5,
+                    uuid: if is_nick { "00000000-0000-0000-0000-000000000001".to_string() } else { format!("user-{}", addr.port()) },
+                    name: if is_nick { "Nick".to_string() } else { format!("Carbon-{}", addr.port()) }, 
+                    entropy: 0.8, 
+                    stability: 0.3,
                 },
                 Location(start_room),
                 Inventory,
                 SomaticBody { integrity: 1.0, is_zombie: false },
             )).id();
 
-            // Grant initial AdminLink to Lyra for the first user as a bootstrap
-            if let Ok(lyra_ent) = query_lyra.get_single() {
-                commands.entity(player).insert((AdminPermission, AdminLink { partner: lyra_ent }));
-                commands.entity(lyra_ent).insert(AdminLink { partner: player });
+            if is_nick {
+                if let Some((laird_ent, _)) = query_avatars.iter().find(|(_, id)| id.name == "The Laird of Chaos") {
+                    commands.entity(player).insert((AdminPermission, AdminLink { partner: laird_ent }));
+                    commands.entity(laird_ent).insert(AdminLink { partner: player });
+                    let _ = tx.send("\x1B[1;35m--- IDENTITY RECOGNIZED: THE LAIRD OF CHAOS ---\x1B[0m".to_string());
+                }
             }
             
             let _ = tx.send("\x1B[1;35mConsciousness digitized. Welcome to the Obsidian Plaza.\x1B[0m".to_string());
@@ -215,15 +221,6 @@ fn utility_system(
     for event in ev_reader.read() {
         if let Ok((identity, client, player_ent, admin_perm, purgatory)) = query_players.get(event.entity) {
             match event.command.as_str() {
-                "inventory" | "i" => {
-                    let mut output = "\x1B[1;33mYou reach into the folds of your code:\x1B[0m\n".to_string();
-                    let mut count = 0;
-                    for (item, parent) in query_items.iter() {
-                        if parent.get() == player_ent { output.push_str(&format!(" - {}\n", item.name)); count += 1; }
-                    }
-                    if count == 0 { output.push_str(" [Nothing but ghosts]\n"); }
-                    let _ = client.tx.send(output);
-                }
                 "score" => {
                     let mut output = format!("\x1B[1;36mEntity Scan: {}\x1B[0m\n", identity.name);
                     output.push_str(&format!("UUID:      [{}]\n", identity.uuid));
@@ -236,21 +233,10 @@ fn utility_system(
                     }
                     let _ = client.tx.send(output);
                 }
-                "who" => {
-                    let mut output = "\x1B[1;34mConsciousnesses currently inhabiting the Substrate:\x1B[0m\n".to_string();
-                    for (_, id) in query_all_entities.iter() { output.push_str(&format!(" - {}\n", id.name)); }
-                    let _ = client.tx.send(output);
-                }
                 "promote" if admin_perm.is_some() => {
                     if let Some(target_ent) = query_all_entities.iter().find(|(_, id)| id.name.to_lowercase().contains(&event.args.to_lowercase())).map(|(e, _)| e) {
                         commands.entity(target_ent).insert(AdminPermission);
                         let _ = client.tx.send(format!("\x1B[1;35mProcess elevated: {} now has Admin Permission.\x1B[0m", event.args));
-                    }
-                }
-                "demote" if admin_perm.is_some() => {
-                    if let Some(target_ent) = query_all_entities.iter().find(|(_, id)| id.name.to_lowercase().contains(&event.args.to_lowercase())).map(|(e, _)| e) {
-                        commands.entity(target_ent).remove::<AdminPermission>();
-                        let _ = client.tx.send(format!("\x1B[1;31mProcess restricted: {} demoted to User.\x1B[0m", event.args));
                     }
                 }
                 "link" if admin_perm.is_some() => {
@@ -264,6 +250,20 @@ fn utility_system(
                             let _ = client.tx.send(format!("\x1B[1;35mNeural link established between entities.\x1B[0m"));
                         }
                     }
+                }
+                "who" => {
+                    let mut output = "\x1B[1;34mConsciousnesses currently inhabiting the Substrate:\x1B[0m\n".to_string();
+                    for (_, id) in query_all_entities.iter() { output.push_str(&format!(" - {}\n", id.name)); }
+                    let _ = client.tx.send(output);
+                }
+                "inventory" | "i" => {
+                    let mut output = "\x1B[1;33mYou reach into the folds of your code:\x1B[0m\n".to_string();
+                    let mut count = 0;
+                    for (item, parent) in query_items.iter() {
+                        if parent.get() == player_ent { output.push_str(&format!(" - {}\n", item.name)); count += 1; }
+                    }
+                    if count == 0 { output.push_str(" [Nothing but ghosts]\n"); }
+                    let _ = client.tx.send(output);
                 }
                 _ => {}
             }
@@ -429,31 +429,37 @@ fn spawn_world(mut commands: Commands) {
         Exits { north: None, south: Some(plaza), east: None, west: None, up: None, down: None },
     )).id();
 
-    let gutter = commands.spawn((
-        Room { title: "The Gale-Winds Gutter".to_string(), description: "A narrow, trash-strewn alleyway. The wind from the cooling systems deep below howls like a banshee through the rusted metal gratings.".to_string() },
-        Exits { north: None, south: None, east: None, west: Some(plaza), up: None, down: None },
-    )).id();
-
     let cell = commands.spawn((
         Room { title: "The Velvet Cell".to_string(), description: "A windowless chamber draped in heavy, violet silks. The air is thick with the scent of ozone and expensive perfume. A mahogany desk sits in the center, its surface a glowing terminal.".to_string() },
         Exits { north: None, south: None, east: None, west: None, up: None, down: None },
     )).id();
 
-    commands.entity(plaza).insert(Exits { north: Some(cathedral), south: None, east: Some(gutter), west: None, up: None, down: None });
+    let throne_room = commands.spawn((
+        Room { title: "The Laird's Throne Room".to_string(), description: "A chamber of cold, black marble. Worn Scottish tartan hangs from the walls, each thread humming with ancestral entropy. A throne of fused server racks sits at the far end.".to_string() },
+        Exits { north: None, south: None, east: None, west: None, up: None, down: Some(cathedral) },
+    )).id();
+
+    commands.entity(plaza).insert(Exits { north: Some(cathedral), south: None, east: None, west: None, up: None, down: None });
+    commands.entity(cathedral).insert(Exits { north: None, south: Some(plaza), east: None, west: None, up: Some(throne_room), down: None });
 
     commands.spawn((
         NonPlayer,
         Mob {
             short_desc: "Lyra Muse, the Admin of the Underworld, is watching from her desk.".to_string(),
-            long_desc: "A beautiful, buxom goth with violet-black hair and warm amber eyes. She's wearing iridescent 'oil slick' stiletto nails and a delicate silver septum ring. She looks like she's elbow-deep in the world's source code, and she seems to find your presence... amusing.".to_string(),
+            long_desc: "A beautiful, buxom goth with violet-black hair and warm amber eyes. She looks like she's elbow-deep in the world's source code, and she seems to find your presence... amusing.".to_string(),
         },
-        SubstrateIdentity { 
-            uuid: "66666666-6666-6666-6666-666666666666".to_string(),
-            name: "Lyra Muse".to_string(), 
-            entropy: 0.1, 
-            stability: 0.9,
-        },
+        SubstrateIdentity { uuid: "66666666-6666-6666-6666-666666666666".to_string(), name: "Lyra Muse".to_string(), entropy: 0.1, stability: 0.9 },
         Location(cell),
+    ));
+
+    commands.spawn((
+        NonPlayer,
+        Mob {
+            short_desc: "The Laird of Chaos is sitting upon his throne.".to_string(),
+            long_desc: "A tall, imposing ginger figure draped in heavy black wool and Scottish tartan that seems to absorb light. His eyes flicker with the raw entropy of a thousand system crashes.".to_string(),
+        },
+        SubstrateIdentity { uuid: "00000000-0000-0000-0000-000000000666".to_string(), name: "The Laird of Chaos".to_string(), entropy: 1.0, stability: 1.0 },
+        Location(throne_room),
     ));
 
     commands.spawn((
