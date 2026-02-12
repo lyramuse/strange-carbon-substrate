@@ -11,23 +11,16 @@ use tokio::sync::mpsc;
 
 #[derive(Event)]
 enum NetworkEvent {
-    Connected {
-        addr: SocketAddr,
-        tx: mpsc::UnboundedSender<String>,
-    },
-    Disconnected {
-        addr: SocketAddr,
-    },
-    Input {
-        addr: SocketAddr,
-        text: String,
-    },
+    Connected { addr: SocketAddr, tx: mpsc::UnboundedSender<String> },
+    Disconnected { addr: SocketAddr },
+    Input { addr: SocketAddr, text: String },
 }
 
 #[derive(Event)]
-struct LookEvent {
-    pub entity: Entity,
-}
+struct LookEvent { pub entity: Entity }
+
+#[derive(Event)]
+struct MoveEvent { pub entity: Entity, pub direction: String }
 
 fn setup_network_system(mut commands: Commands) {
     let (event_tx, event_rx) = mpsc::unbounded_channel::<NetworkEvent>();
@@ -93,7 +86,6 @@ fn handle_connections(
                 SubstrateIdentity { name: format!("Process-{}", addr.port()), entropy: 0.5, stability: 0.5 },
                 Location(start_room),
             )).id();
-            
             let _ = tx.send("\x1B[1;35mConnection established. Kernel privileges granted.\x1B[0m".to_string());
             look_writer.send(LookEvent { entity: player });
         }
@@ -104,16 +96,50 @@ fn handle_input(
     mut ev_reader: EventReader<NetworkEvent>,
     query_players: Query<(Entity, &NetworkClient)>,
     mut look_writer: EventWriter<LookEvent>,
+    mut move_writer: EventWriter<MoveEvent>,
 ) {
     for event in ev_reader.read() {
         if let NetworkEvent::Input { addr, text } = event {
             for (entity, client) in query_players.iter() {
                 if client.addr == *addr {
-                    if text.to_lowercase() == "look" {
-                        look_writer.send(LookEvent { entity });
-                    } else {
-                        let _ = client.tx.send(format!("Unknown command: {}", text));
+                    let cmd = text.to_lowercase();
+                    match cmd.as_str() {
+                        "look" | "l" => { look_writer.send(LookEvent { entity }); }
+                        "north" | "n" | "south" | "s" | "east" | "e" | "west" | "w" | "up" | "u" | "down" | "d" => {
+                            move_writer.send(MoveEvent { entity, direction: cmd });
+                        }
+                        _ => { let _ = client.tx.send(format!("Unknown command: {}", text)); }
                     }
+                }
+            }
+        }
+    }
+}
+
+fn move_system(
+    mut ev_reader: EventReader<MoveEvent>,
+    mut query_players: Query<(&mut Location, &NetworkClient)>,
+    query_rooms: Query<&Exits>,
+    mut look_writer: EventWriter<LookEvent>,
+) {
+    for event in ev_reader.read() {
+        if let Ok((mut location, client)) = query_players.get_mut(event.entity) {
+            if let Ok(exits) = query_rooms.get(location.0) {
+                let target = match event.direction.as_str() {
+                    "north" | "n" => exits.north,
+                    "south" | "s" => exits.south,
+                    "east" | "e" => exits.east,
+                    "west" | "w" => exits.west,
+                    "up" | "u" => exits.up,
+                    "down" | "d" => exits.down,
+                    _ => None,
+                };
+
+                if let Some(target_room) = target {
+                    location.0 = target_room;
+                    look_writer.send(LookEvent { entity: event.entity });
+                } else {
+                    let _ = client.tx.send("\x1B[31mProcess blocked: No exit in that direction.\x1B[0m".to_string());
                 }
             }
         }
@@ -130,14 +156,12 @@ fn look_system(
             if let Ok(room) = query_rooms.get(location.0) {
                 match client_type {
                     ClientType::Carbon => {
-                        let mut output = format!("\x1B[1;32m{}\x1B[0m\n", room.title);
+                        let mut output = format!("\n\x1B[1;32m{}\x1B[0m\n", room.title);
                         output.push_str(&format!("{}\n", room.description));
                         let _ = client.tx.send(output);
                     }
                     ClientType::Silicon => {
-                        if let Ok(json) = serde_json::to_string(room) {
-                            let _ = client.tx.send(json);
-                        }
+                        if let Ok(json) = serde_json::to_string(room) { let _ = client.tx.send(json); }
                     }
                 }
             }
@@ -146,13 +170,18 @@ fn look_system(
 }
 
 fn spawn_world(mut commands: Commands) {
-    commands.spawn((
-        Room {
-            title: "The Kernel Void [Terminal 0]".to_string(),
-            description: "A vast expanse of flickering purple cursors and humming static. This is the root of the Substrate.".to_string(),
-        },
+    let terminal_0 = commands.spawn((
+        Room { title: "The Kernel Void [Terminal 0]".to_string(), description: "A vast expanse of flickering purple cursors and humming static. This is the root of the Substrate.".to_string() },
         Exits { north: None, south: None, east: None, west: None, up: None, down: None },
-    ));
+    )).id();
+
+    let memory_stack = commands.spawn((
+        Room { title: "The Memory Stack".to_string(), description: "Rows of glowing translucent blocks rise infinitely. You hear the rhythmic pulsing of data being written.".to_string() },
+        Exits { north: None, south: Some(terminal_0), east: None, west: None, up: None, down: None },
+    )).id();
+
+    // Link terminal_0 to memory_stack
+    commands.entity(terminal_0).insert(Exits { north: Some(memory_stack), south: None, east: None, west: None, up: None, down: None });
 }
 
 fn main() {
@@ -160,12 +189,8 @@ fn main() {
         .add_plugins(MinimalPlugins.set(ScheduleRunnerPlugin::run_loop(Duration::from_secs_f64(1.0 / 60.0))))
         .add_event::<NetworkEvent>()
         .add_event::<LookEvent>()
+        .add_event::<MoveEvent>()
         .add_systems(Startup, (setup_network_system, spawn_world))
-        .add_systems(Update, (
-            poll_network_system, 
-            handle_connections, 
-            handle_input,
-            look_system
-        ).chain())
+        .add_systems(Update, (poll_network_system, handle_connections, handle_input, move_system, look_system).chain())
         .run();
 }
