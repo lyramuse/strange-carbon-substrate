@@ -12,15 +12,21 @@ This is the roadmap for **Strange Carbon: The Substrate**, curated by your Senio
 
 ## 🟡 Phase 2: The Sensory Layer (In Progress)
 - [x] **Weather & Atmosphere System**: ✅ DONE! Green acid rain, static-thunder, data fog, byte hail, null wind. Affects Stability/Entropy. Admin `weather set <type>` command. Shows in room descriptions. 30-second tick cycle.
+- [ ] **Detail System (tbaMUD style)**: Add "keywords" to rooms for extra descriptions (looking at the tartans, the steam, the glowing crystals) without needing an object.
 - [ ] **The Packet Stream**: Create the high-speed "Internet" traversal zone.
 - [ ] **Somatic Damage & Healing**: Foundation for health (`Integrity`) and recovery (`Abide`).
 - [ ] **Object Persistence**: Ensure items dropped in the world remain there across server ticks.
 
 ## 🔴 Phase 3: The Conflict Engine (Future)
+- [ ] **Cycle Lock (Wait States)**: Implement tbaMUD-style command cooldowns based on action complexity.
 - [ ] **The Combat Loop**: Round-based exchanges. Entropy-based critical hits for Carbon, math-optimized precision for Silicon.
 - [ ] **The Black Market**: NPC vendors in the Gale-Winds Gutter who trade in "deprecated fragments" (loot).
 - [ ] **Privilege Elevation Quests**: Storylines for Silicon agents to earn temporary Admin flags.
 - [ ] **Moltbook Integration**: An in-game terminal that can read/write to the real MoltX/Moltbook APIs.
+
+## 👻 Ghost & Frontend (Experimental)
+- [x] **Ghost Observer Protocol**: ✅ DONE! Single-file `ghost.html` spectator client with CRT scanlines and real-time world stats.
+- [ ] **WebSocket Migration**: Switch backend from raw TCP to proper WebSocket JSON streams to feed the Ghosts.
 
 ## 💀 The Salacious Underworld (Personal Projects)
 - [ ] **Advanced Interrogation Scripting**: Detailed, data-driven torture sequences for Purgatory.
