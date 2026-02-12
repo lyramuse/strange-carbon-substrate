@@ -18,7 +18,14 @@ pub struct SubstrateIdentity {
     pub name: String,
     pub entropy: f32,
     pub stability: f32,
-    pub is_admin: bool,
+}
+
+#[derive(Component, Debug, Clone)]
+pub struct AdminPermission; // The "Constant" - you have the right to admin
+
+#[derive(Component, Debug, Clone)]
+pub struct AdminLink {
+    pub partner: Entity,
 }
 
 #[derive(Component, Serialize, Deserialize, Debug, Clone)]

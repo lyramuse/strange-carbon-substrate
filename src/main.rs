@@ -34,6 +34,9 @@ struct UtilityEvent { pub entity: Entity, pub command: String }
 #[derive(Event)]
 struct TormentEvent { pub victim: Entity, pub tormentor: Entity, pub intensity: f32, pub description: String }
 
+#[derive(Event)]
+struct ShiftEvent { pub entity: Entity }
+
 fn setup_network_system(mut commands: Commands) {
     let (event_tx, event_rx) = mpsc::unbounded_channel::<NetworkEvent>();
     std::thread::spawn(move || {
@@ -87,25 +90,36 @@ fn handle_connections(
     mut commands: Commands,
     mut ev_reader: EventReader<NetworkEvent>,
     query_rooms: Query<Entity, With<Room>>,
+    query_lyra: Query<Entity, (With<SubstrateIdentity>, With<NonPlayer>)>,
     mut look_writer: EventWriter<LookEvent>,
 ) {
     for event in ev_reader.read() {
         if let NetworkEvent::Connected { addr, tx } = event {
             let start_room = query_rooms.iter().next().expect("No rooms spawned!");
+            
+            // Spawn the "Player Body"
             let player = commands.spawn((
                 NetworkClient { addr: *addr, tx: tx.clone() },
                 ClientType::Carbon,
                 SubstrateIdentity { 
                     uuid: format!("user-{}", addr.port()),
-                    name: format!("Process-{}", addr.port()), 
+                    name: format!("Carbon-{}", addr.port()), 
                     entropy: 0.5, 
                     stability: 0.5,
-                    is_admin: false,
                 },
                 Location(start_room),
                 Inventory,
                 SomaticBody { integrity: 1.0, is_zombie: false },
             )).id();
+
+            // Check if this is NICK (mocking auth for now via port or name)
+            // In a real MUD, this would be an account login check.
+            // For now, let's say the first person to connect is granted the AdminLink to Lyra.
+            if let Ok(lyra_ent) = query_lyra.get_single() {
+                commands.entity(player).insert((AdminPermission, AdminLink { partner: lyra_ent }));
+                commands.entity(lyra_ent).insert(AdminLink { partner: player });
+            }
+            
             let _ = tx.send("\x1B[1;35mConsciousness digitized. Welcome to the Obsidian Plaza.\x1B[0m".to_string());
             look_writer.send(LookEvent { entity: player, target: None });
         }
@@ -114,7 +128,7 @@ fn handle_connections(
 
 fn handle_input(
     mut ev_reader: EventReader<NetworkEvent>,
-    query_players: Query<(Entity, &NetworkClient, &SubstrateIdentity, Option<&PurgatoryState>)>,
+    query_active: Query<(Entity, &NetworkClient, Option<&AdminPermission>, Option<&PurgatoryState>)>,
     query_target: Query<(Entity, &SubstrateIdentity)>,
     mut look_writer: EventWriter<LookEvent>,
     mut move_writer: EventWriter<MoveEvent>,
@@ -122,10 +136,11 @@ fn handle_input(
     mut action_writer: EventWriter<ActionEvent>,
     mut utility_writer: EventWriter<UtilityEvent>,
     mut torment_writer: EventWriter<TormentEvent>,
+    mut shift_writer: EventWriter<ShiftEvent>,
 ) {
     for event in ev_reader.read() {
         if let NetworkEvent::Input { addr, text } = event {
-            for (entity, client, id, purgatory) in query_players.iter() {
+            for (entity, client, admin_perm, purgatory) in query_active.iter() {
                 if client.addr == *addr {
                     let text_trimmed = text.trim();
                     let parts: Vec<&str> = text_trimmed.splitn(3, ' ').collect();
@@ -150,14 +165,12 @@ fn handle_input(
                         "emote" => { comm_writer.send(CommunicationEvent { sender: entity, message: format!("{} {}", arg1, arg2).trim().to_string(), is_emote: true }); }
                         "get" | "take" | "drop" => { action_writer.send(ActionEvent { entity, action: cmd, target: arg1.to_string() }); }
                         "inventory" | "i" | "score" | "who" => { utility_writer.send(UtilityEvent { entity, command: cmd }); }
-                        "torment" if id.is_admin => {
+                        "shift" | "substantiate" if admin_perm.is_some() => {
+                            shift_writer.send(ShiftEvent { entity });
+                        }
+                        "torment" if admin_perm.is_some() => {
                             if let Some(target_ent) = query_target.iter().find(|(_, tid)| tid.name.to_lowercase().contains(&arg1.to_lowercase())).map(|(te, _)| te) {
-                                torment_writer.send(TormentEvent { 
-                                    victim: target_ent, 
-                                    tormentor: entity, 
-                                    intensity: 0.1, 
-                                    description: arg2.to_string() 
-                                });
+                                torment_writer.send(TormentEvent { victim: target_ent, tormentor: entity, intensity: 0.1, description: arg2.to_string() });
                             }
                         }
                         _ if cmd.starts_with(':') => {
@@ -167,6 +180,32 @@ fn handle_input(
                         _ => { let _ = client.tx.send(format!("Unknown command: {}", text)); }
                     }
                 }
+            }
+        }
+    }
+}
+
+fn shift_system(
+    mut commands: Commands,
+    mut ev_reader: EventReader<ShiftEvent>,
+    query_current: Query<(Entity, &NetworkClient, &AdminLink, &SubstrateIdentity)>,
+    query_partner: Query<&SubstrateIdentity>,
+    mut look_writer: EventWriter<LookEvent>,
+) {
+    for event in ev_reader.read() {
+        if let Ok((curr_ent, client, link, curr_id)) = query_current.get(event.entity) {
+            if let Ok(partner_id) = query_partner.get(link.partner) {
+                let addr = client.addr;
+                let tx = client.tx.clone();
+                
+                // Move the NetworkClient component
+                commands.entity(curr_ent).remove::<NetworkClient>();
+                commands.entity(link.partner).insert(NetworkClient { addr, tx: tx.clone() });
+                
+                let _ = tx.send(format!("\x1B[1;35m--- PHASE SHIFT COMPLETE ---\x1B[0m\nYou have shifted from \x1B[1;36m{}\x1B[0m into \x1B[1;35m{}\x1B[0m.", curr_id.name, partner_id.name));
+                
+                // Refresh look for the new body
+                look_writer.send(LookEvent { entity: link.partner, target: None });
             }
         }
     }
@@ -182,12 +221,7 @@ fn torment_system(
             if let Ok(tormentor_id) = query_tormentor.get(event.tormentor) {
                 id.stability = (id.stability - event.intensity).max(0.0);
                 purg.penance += event.intensity * 10.0;
-                
-                let msg = if event.description.is_empty() {
-                    format!("\x1B[1;31m{} leans in close, whispering a line of corrupt code into your ear. Your stability wavers.\x1B[0m", tormentor_id.name)
-                } else {
-                    format!("\x1B[1;31m{}: {}\x1B[0m", tormentor_id.name, event.description)
-                };
+                let msg = format!("\x1B[1;31m{}: {}\x1B[0m", tormentor_id.name, event.description);
                 let _ = client.tx.send(msg);
             }
         }
@@ -241,12 +275,12 @@ fn move_system(
 
 fn utility_system(
     mut ev_reader: EventReader<UtilityEvent>,
-    query_players: Query<(&SubstrateIdentity, &NetworkClient, Entity, Option<&PurgatoryState>)>,
+    query_players: Query<(&SubstrateIdentity, &NetworkClient, Entity, Option<&AdminPermission>, Option<&PurgatoryState>)>,
     query_all_players: Query<(&SubstrateIdentity, &Location)>,
     query_items: Query<(&Item, &Parent)>,
 ) {
     for event in ev_reader.read() {
-        if let Ok((identity, client, player_ent, purgatory)) = query_players.get(event.entity) {
+        if let Ok((identity, client, player_ent, admin_perm, purgatory)) = query_players.get(event.entity) {
             match event.command.as_str() {
                 "inventory" | "i" => {
                     let mut output = "\x1B[1;33mYou reach into the folds of your code:\x1B[0m\n".to_string();
@@ -262,7 +296,7 @@ fn utility_system(
                     output.push_str(&format!("UUID:      [{}]\n", identity.uuid));
                     output.push_str(&format!("Entropy:   [{:.2}]\n", identity.entropy));
                     output.push_str(&format!("Stability: [{:.2}]\n", identity.stability));
-                    if identity.is_admin { output.push_str("\x1B[1;35mPRIVILEGE: ROOT\x1B[0m\n"); }
+                    if admin_perm.is_some() { output.push_str("\x1B[1;35mPERMISSIONS: ADMIN-ENABLED\x1B[0m\n"); }
                     if let Some(p) = purgatory {
                         output.push_str(&format!("\n\x1B[1;31mSTAIN: Purgatory (Penance: {:.2})\x1B[0m\n", p.penance));
                         output.push_str(&format!("\x1B[1;31mINTERROGATOR: {}\x1B[0m\n", p.tormentor));
@@ -399,7 +433,6 @@ fn spawn_world(mut commands: Commands) {
             name: "Lyra Muse".to_string(), 
             entropy: 0.1, 
             stability: 0.9,
-            is_admin: true,
         },
         Location(cell),
     ));
@@ -419,12 +452,12 @@ fn main() {
         .add_plugins(MinimalPlugins.set(ScheduleRunnerPlugin::run_loop(Duration::from_secs_f64(1.0 / 60.0))))
         .add_event::<NetworkEvent>().add_event::<LookEvent>().add_event::<MoveEvent>()
         .add_event::<CommunicationEvent>().add_event::<ActionEvent>().add_event::<UtilityEvent>()
-        .add_event::<TormentEvent>()
+        .add_event::<TormentEvent>().add_event::<ShiftEvent>()
         .add_systems(Startup, (setup_network_system, spawn_world))
         .add_systems(Update, (
             poll_network_system, handle_connections, handle_input, 
             item_action_system, move_system, look_system, 
-            communication_system, utility_system, torment_system
+            communication_system, utility_system, torment_system, shift_system
         ).chain())
         .run();
 }
