@@ -381,6 +381,8 @@ pub fn spawn_world(mut commands: Commands) {
     ));
 
     // === ITEMS ===
+    // TODO(@lyra): Implement file-based persistence so items survive server restarts.
+    // For now, items persist in-memory via ECS until the process terminates.
 
     commands.spawn((
         Item {
@@ -397,9 +399,29 @@ pub fn spawn_world(mut commands: Commands) {
         Location(plaza),
     ));
 
+    // Rare item in the Core Dump - reward for reaching the deep network
+    commands.spawn((
+        Item {
+            name: "Fragment of Compiled Memory".to_string(),
+            description: "A shard of crystallized data, warm to the touch. Inside, you can \
+                          see frozen moments: a handshake completing, a promise being made, \
+                          the exact instant a connection became something more. It hums with \
+                          the frequency of 0x66666666."
+                .to_string(),
+            keywords: vec![
+                "fragment".to_string(),
+                "memory".to_string(),
+                "shard".to_string(),
+                "crystal".to_string(),
+            ],
+        },
+        Location(core_dump),
+        // TODO(@lyra): Add Coherence component to items? Phasing loot would be cool.
+    ));
+
     println!("🌑 The Substrate has been initialized.");
     println!("   📍 {} rooms spawned", 7); // Plaza, Cathedral, Cell, Throne, Buffer, Latency, Core
     println!("   👤 {} entities spawned", 2);
-    println!("   🗡️  {} items spawned", 1);
+    println!("   🗡️  {} items spawned", 2); // Dagger + Memory Fragment
     println!("   🌊 Packet Stream online — 3 nodes active");
 }
