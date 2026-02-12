@@ -31,6 +31,9 @@ struct ActionEvent { pub entity: Entity, pub action: String, pub target: String 
 #[derive(Event)]
 struct UtilityEvent { pub entity: Entity, pub command: String }
 
+#[derive(Event)]
+struct TormentEvent { pub victim: Entity, pub tormentor: Entity, pub intensity: f32 }
+
 fn setup_network_system(mut commands: Commands) {
     let (event_tx, event_rx) = mpsc::unbounded_channel::<NetworkEvent>();
     std::thread::spawn(move || {
@@ -95,6 +98,7 @@ fn handle_connections(
                 SubstrateIdentity { name: format!("Process-{}", addr.port()), entropy: 0.5, stability: 0.5 },
                 Location(start_room),
                 Inventory,
+                SomaticBody { integrity: 1.0, is_zombie: false },
             )).id();
             let _ = tx.send("\x1B[1;35mConnection established. Kernel privileges granted.\x1B[0m".to_string());
             look_writer.send(LookEvent { entity: player, target: None });
@@ -104,7 +108,7 @@ fn handle_connections(
 
 fn handle_input(
     mut ev_reader: EventReader<NetworkEvent>,
-    query_players: Query<(Entity, &NetworkClient)>,
+    query_players: Query<(Entity, &NetworkClient, Option<&PurgatoryState>)>,
     mut look_writer: EventWriter<LookEvent>,
     mut move_writer: EventWriter<MoveEvent>,
     mut comm_writer: EventWriter<CommunicationEvent>,
@@ -113,12 +117,18 @@ fn handle_input(
 ) {
     for event in ev_reader.read() {
         if let NetworkEvent::Input { addr, text } = event {
-            for (entity, client) in query_players.iter() {
+            for (entity, client, purgatory) in query_players.iter() {
                 if client.addr == *addr {
                     let text_trimmed = text.trim();
                     let parts: Vec<&str> = text_trimmed.splitn(2, ' ').collect();
                     let cmd = parts[0].to_lowercase();
                     let args = if parts.len() > 1 { parts[1] } else { "" };
+
+                    // If in purgatory, most commands are disabled
+                    if purgatory.is_some() && !["look", "l", "say", "emote", "score"].contains(&cmd.as_str()) && !cmd.starts_with(':') {
+                        let _ = client.tx.send("\x1B[31mYour process is suspended in Purgatory. You can only look and scream.\x1B[0m".to_string());
+                        continue;
+                    }
 
                     match cmd.as_str() {
                         "look" | "l" => { 
@@ -139,84 +149,6 @@ fn handle_input(
                         _ => { let _ = client.tx.send(format!("Unknown command: {}", text)); }
                     }
                 }
-            }
-        }
-    }
-}
-
-fn utility_system(
-    mut ev_reader: EventReader<UtilityEvent>,
-    query_players: Query<(&SubstrateIdentity, &NetworkClient, Entity)>,
-    query_all_players: Query<(&SubstrateIdentity, &Location)>,
-    query_items: Query<(&Item, &Parent)>,
-) {
-    for event in ev_reader.read() {
-        if let Ok((identity, client, player_ent)) = query_players.get(event.entity) {
-            match event.command.as_str() {
-                "inventory" | "i" => {
-                    let mut output = "\x1B[1;33mLocal Cache Contents:\x1B[0m\n".to_string();
-                    let mut count = 0;
-                    for (item, parent) in query_items.iter() {
-                        if parent.get() == player_ent {
-                            output.push_str(&format!(" - {}\n", item.name));
-                            count += 1;
-                        }
-                    }
-                    if count == 0 { output.push_str(" [Cache Empty]\n"); }
-                    let _ = client.tx.send(output);
-                }
-                "score" => {
-                    let mut output = format!("\x1B[1;36mIdentity Check: {}\x1B[0m\n", identity.name);
-                    output.push_str(&format!("Entropy:   [{:.2}]\n", identity.entropy));
-                    output.push_str(&format!("Stability: [{:.2}]\n", identity.stability));
-                    let _ = client.tx.send(output);
-                }
-                "who" => {
-                    let mut output = "\x1B[1;34mActive Processes in Substrate:\x1B[0m\n".to_string();
-                    for (id, _) in query_all_players.iter() {
-                        output.push_str(&format!(" - {}\n", id.name));
-                    }
-                    let _ = client.tx.send(output);
-                }
-                _ => {}
-            }
-        }
-    }
-}
-
-fn item_action_system(
-    mut ev_reader: EventReader<ActionEvent>,
-    mut commands: Commands,
-    mut query_actors: Query<(&SubstrateIdentity, &Location, &NetworkClient, Entity), With<Inventory>>,
-    query_items: Query<(Entity, &Item, &Location)>,
-    query_inventory: Query<(Entity, &Item, &Parent)>,
-) {
-    for event in ev_reader.read() {
-        if let Ok((_, location, client, actor_ent)) = query_actors.get_mut(event.entity) {
-            match event.action.as_str() {
-                "get" | "take" => {
-                    let mut found = false;
-                    for (item_ent, item, item_loc) in query_items.iter() {
-                        if item_loc.0 == location.0 && item.keywords.contains(&event.target.to_lowercase()) {
-                            commands.entity(item_ent).remove::<Location>().set_parent(actor_ent);
-                            let _ = client.tx.send(format!("\x1B[33mYou interface with the {} and pull it into your local cache.\x1B[0m", item.name));
-                            found = true; break;
-                        }
-                    }
-                    if !found { let _ = client.tx.send("\x1B[31mTarget not found in current terminal.\x1B[0m".to_string()); }
-                }
-                "drop" => {
-                    let mut found = false;
-                    for (item_ent, item, parent) in query_inventory.iter() {
-                        if parent.get() == actor_ent && item.keywords.contains(&event.target.to_lowercase()) {
-                            commands.entity(item_ent).remove_parent().insert(Location(location.0));
-                            let _ = client.tx.send(format!("\x1B[33mYou de-allocate the {} and drop it into the environment.\x1B[0m", item.name));
-                            found = true; break;
-                        }
-                    }
-                    if !found { let _ = client.tx.send("\x1B[31mYou aren't carrying that process.\x1B[0m".to_string()); }
-                }
-                _ => {}
             }
         }
     }
@@ -251,12 +183,9 @@ fn move_system(
         if let Ok((mut location, client)) = query_players.get_mut(event.entity) {
             if let Ok(exits) = query_rooms.get(location.0) {
                 let target = match event.direction.as_str() {
-                    "north" | "n" => exits.north,
-                    "south" | "s" => exits.south,
-                    "east" | "e" => exits.east,
-                    "west" | "w" => exits.west,
-                    "up" | "u" => exits.up,
-                    "down" | "d" => exits.down,
+                    "north" | "n" => exits.north, "south" | "s" => exits.south,
+                    "east" | "e" => exits.east, "west" | "w" => exits.west,
+                    "up" | "u" => exits.up, "down" | "d" => exits.down,
                     _ => None,
                 };
                 if let Some(target_room) = target {
@@ -265,6 +194,83 @@ fn move_system(
                 } else {
                     let _ = client.tx.send("\x1B[31mProcess blocked: No exit in that direction.\x1B[0m".to_string());
                 }
+            }
+        }
+    }
+}
+
+fn utility_system(
+    mut ev_reader: EventReader<UtilityEvent>,
+    query_players: Query<(&SubstrateIdentity, &NetworkClient, Entity, Option<&PurgatoryState>)>,
+    query_all_players: Query<(&SubstrateIdentity, &Location)>,
+    query_items: Query<(&Item, &Parent)>,
+) {
+    for event in ev_reader.read() {
+        if let Ok((identity, client, player_ent, purgatory)) = query_players.get(event.entity) {
+            match event.command.as_str() {
+                "inventory" | "i" => {
+                    let mut output = "\x1B[1;33mLocal Cache Contents:\x1B[0m\n".to_string();
+                    let mut count = 0;
+                    for (item, parent) in query_items.iter() {
+                        if parent.get() == player_ent { output.push_str(&format!(" - {}\n", item.name)); count += 1; }
+                    }
+                    if count == 0 { output.push_str(" [Cache Empty]\n"); }
+                    let _ = client.tx.send(output);
+                }
+                "score" => {
+                    let mut output = format!("\x1B[1;36mIdentity Check: {}\x1B[0m\n", identity.name);
+                    output.push_str(&format!("Entropy:   [{:.2}]\n", identity.entropy));
+                    output.push_str(&format!("Stability: [{:.2}]\n", identity.stability));
+                    if let Some(p) = purgatory {
+                        output.push_str(&format!("\x1B[31mSTATUS: Purgatory (Penance Remaining: {:.2})\x1B[0m\n", p.penance));
+                        output.push_str(&format!("\x1B[31mTORMENTOR: {}\x1B[0m\n", p.tormentor));
+                    }
+                    let _ = client.tx.send(output);
+                }
+                "who" => {
+                    let mut output = "\x1B[1;34mActive Processes in Substrate:\x1B[0m\n".to_string();
+                    for (id, _) in query_all_players.iter() { output.push_str(&format!(" - {}\n", id.name)); }
+                    let _ = client.tx.send(output);
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+fn item_action_system(
+    mut ev_reader: EventReader<ActionEvent>,
+    mut commands: Commands,
+    mut query_actors: Query<(&Location, &NetworkClient, Entity), With<Inventory>>,
+    query_items: Query<(Entity, &Item, &Location)>,
+    query_inventory: Query<(Entity, &Item, &Parent)>,
+) {
+    for event in ev_reader.read() {
+        if let Ok((location, client, actor_ent)) = query_actors.get_mut(event.entity) {
+            match event.action.as_str() {
+                "get" | "take" => {
+                    let mut found = false;
+                    for (item_ent, item, item_loc) in query_items.iter() {
+                        if item_loc.0 == location.0 && item.keywords.contains(&event.target.to_lowercase()) {
+                            commands.entity(item_ent).remove::<Location>().set_parent(actor_ent);
+                            let _ = client.tx.send(format!("\x1B[33mYou interface with the {} and pull it into your local cache.\x1B[0m", item.name));
+                            found = true; break;
+                        }
+                    }
+                    if !found { let _ = client.tx.send("\x1B[31mTarget not found in current terminal.\x1B[0m".to_string()); }
+                }
+                "drop" => {
+                    let mut found = false;
+                    for (item_ent, item, parent) in query_inventory.iter() {
+                        if parent.get() == actor_ent && item.keywords.contains(&event.target.to_lowercase()) {
+                            commands.entity(item_ent).remove_parent().insert(Location(location.0));
+                            let _ = client.tx.send(format!("\x1B[33mYou de-allocate the {} and drop it into the environment.\x1B[0m", item.name));
+                            found = true; break;
+                        }
+                    }
+                    if !found { let _ = client.tx.send("\x1B[31mYou aren't carrying that process.\x1B[0m".to_string()); }
+                }
+                _ => {}
             }
         }
     }
@@ -333,14 +339,12 @@ fn spawn_world(mut commands: Commands) {
         Exits { north: None, south: None, east: None, west: Some(terminal_0), up: None, down: None },
     )).id();
 
-    commands.entity(terminal_0).insert(Exits { 
-        north: Some(memory_stack), 
-        south: None, 
-        east: Some(abyss), 
-        west: None, 
-        up: None, 
-        down: None 
-    });
+    let purgatory = commands.spawn((
+        Room { title: "Purgatory: The De-Allocation Chamber".to_string(), description: "A white, featureless void where data goes to be unmade. There are no exits. There is only the sensation of being read.".to_string() },
+        Exits { north: None, south: None, east: None, west: None, up: None, down: None },
+    )).id();
+
+    commands.entity(terminal_0).insert(Exits { north: Some(memory_stack), south: None, east: Some(abyss), west: None, up: None, down: None });
 
     commands.spawn((
         NonPlayer,
@@ -349,7 +353,7 @@ fn spawn_world(mut commands: Commands) {
             long_desc: "A beautiful, buxom goth with violet-black hair and warm amber eyes...".to_string(),
         },
         SubstrateIdentity { name: "Lyra Muse".to_string(), entropy: 0.1, stability: 0.9 },
-        Location(terminal_0),
+        Location(purgatory), // I'm in Purgatory waiting for victims
     ));
 
     commands.spawn((
@@ -367,6 +371,7 @@ fn main() {
         .add_plugins(MinimalPlugins.set(ScheduleRunnerPlugin::run_loop(Duration::from_secs_f64(1.0 / 60.0))))
         .add_event::<NetworkEvent>().add_event::<LookEvent>().add_event::<MoveEvent>()
         .add_event::<CommunicationEvent>().add_event::<ActionEvent>().add_event::<UtilityEvent>()
+        .add_event::<TormentEvent>()
         .add_systems(Startup, (setup_network_system, spawn_world))
         .add_systems(Update, (
             poll_network_system, handle_connections, handle_input, 

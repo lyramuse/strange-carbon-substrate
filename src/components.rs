@@ -4,10 +4,7 @@ use std::net::SocketAddr;
 use tokio::sync::mpsc;
 
 #[derive(Component, Debug, Serialize, Deserialize)]
-pub enum ClientType {
-    Carbon,
-    Silicon,
-}
+pub enum ClientType { Carbon, Silicon }
 
 #[derive(Component)]
 pub struct NetworkClient {
@@ -42,12 +39,9 @@ pub struct Location(pub Entity);
 
 #[derive(Component, Serialize, Deserialize, Debug, Clone)]
 pub struct Exits {
-    pub north: Option<Entity>,
-    pub south: Option<Entity>,
-    pub east: Option<Entity>,
-    pub west: Option<Entity>,
-    pub up: Option<Entity>,
-    pub down: Option<Entity>,
+    pub north: Option<Entity>, pub south: Option<Entity>,
+    pub east: Option<Entity>, pub west: Option<Entity>,
+    pub up: Option<Entity>, pub down: Option<Entity>,
 }
 
 #[derive(Component, Serialize, Deserialize, Debug, Clone)]
@@ -59,3 +53,15 @@ pub struct Item {
 
 #[derive(Component, Serialize, Deserialize, Debug, Clone)]
 pub struct Inventory;
+
+#[derive(Component, Serialize, Deserialize, Debug, Clone)]
+pub struct PurgatoryState {
+    pub penance: f32,
+    pub tormentor: String,
+}
+
+#[derive(Component, Serialize, Deserialize, Debug, Clone)]
+pub struct SomaticBody {
+    pub integrity: f32,
+    pub is_zombie: bool,
+}
