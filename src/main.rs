@@ -40,8 +40,9 @@ fn main() {
         .add_event::<UtilityEvent>()
         .add_event::<TormentEvent>()
         .add_event::<ShiftEvent>()
+        .add_event::<WeatherChangeEvent>()
         // Startup systems
-        .add_systems(Startup, (setup_network_system, spawn_world))
+        .add_systems(Startup, (setup_network_system, spawn_world, setup_weather_system))
         // Update systems - chained for proper ordering
         .add_systems(
             Update,
@@ -58,6 +59,9 @@ fn main() {
                 utility_system,
                 torment_system,
                 shift_system,
+                // Atmosphere
+                weather_tick_system,
+                weather_announce_system,
             )
                 .chain(),
         )

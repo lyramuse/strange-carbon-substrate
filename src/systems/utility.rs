@@ -1,4 +1,4 @@
-// Utility System - Score, who, inventory, admin commands
+// Utility System - Score, who, inventory, admin commands, weather
 
 use bevy::prelude::*;
 
@@ -10,15 +10,17 @@ pub fn utility_system(
     query_players: Query<(
         &SubstrateIdentity,
         &NetworkClient,
+        &Location,
         Entity,
         Option<&AdminPermission>,
         Option<&PurgatoryState>,
     )>,
     query_all_entities: Query<(Entity, &SubstrateIdentity)>,
     query_items: Query<(&Item, &Parent)>,
+    mut query_weather: Query<&mut CurrentWeather>,
 ) {
     for event in ev_reader.read() {
-        if let Ok((identity, client, player_ent, admin_perm, purgatory)) =
+        if let Ok((identity, client, location, player_ent, admin_perm, purgatory)) =
             query_players.get(event.entity)
         {
             match event.command.as_str() {
@@ -44,6 +46,57 @@ pub fn utility_system(
                     }
 
                     let _ = client.tx.send(output);
+                }
+
+                "weather" => {
+                    if event.args.is_empty() {
+                        // Show current weather
+                        if let Ok(weather) = query_weather.get(location.0) {
+                            let desc = if weather.weather_type == WeatherType::Clear {
+                                "The atmosphere is calm. No weather phenomena detected.".to_string()
+                            } else {
+                                format!(
+                                    "Current: {} (intensity: {:.0}%, {} ticks remaining)",
+                                    weather.weather_type.describe_silicon(),
+                                    weather.intensity * 100.0,
+                                    weather.ticks_remaining
+                                )
+                            };
+                            let _ = client.tx.send(format!("\x1B[36m{}\x1B[0m", desc));
+                        } else {
+                            let _ = client.tx.send("\x1B[90mThis area has no weather system.\x1B[0m".to_string());
+                        }
+                    } else if event.args.starts_with("set ") && admin_perm.is_some() {
+                        // Admin: set weather
+                        let weather_name = event.args.strip_prefix("set ").unwrap().trim().to_lowercase();
+                        let new_weather = match weather_name.as_str() {
+                            "clear" => Some(WeatherType::Clear),
+                            "acid" | "acidrain" | "acid_rain" => Some(WeatherType::AcidRain),
+                            "static" | "storm" | "staticstorm" | "static_storm" => Some(WeatherType::StaticStorm),
+                            "fog" | "datafog" | "data_fog" => Some(WeatherType::DataFog),
+                            "hail" | "bytehail" | "byte_hail" => Some(WeatherType::ByteHail),
+                            "null" | "wind" | "nullwind" | "null_wind" => Some(WeatherType::NullWind),
+                            _ => None,
+                        };
+
+                        if let Some(wt) = new_weather {
+                            if let Ok(mut weather) = query_weather.get_mut(location.0) {
+                                weather.weather_type = wt;
+                                weather.intensity = 0.8;
+                                weather.ticks_remaining = 10;
+                                let _ = client.tx.send(format!(
+                                    "\x1B[35mYou twist the atmospheric parameters. {} descends upon this zone.\x1B[0m",
+                                    wt.describe_silicon()
+                                ));
+                            } else {
+                                let _ = client.tx.send("\x1B[31mThis area cannot support weather.\x1B[0m".to_string());
+                            }
+                        } else {
+                            let _ = client.tx.send("\x1B[31mUnknown weather type. Try: clear, acid, static, fog, hail, null\x1B[0m".to_string());
+                        }
+                    } else if event.args.starts_with("set ") {
+                        let _ = client.tx.send("\x1B[31mOnly administrators can manipulate the weather.\x1B[0m".to_string());
+                    }
                 }
 
                 "promote" if admin_perm.is_some() => {

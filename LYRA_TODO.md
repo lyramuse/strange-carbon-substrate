@@ -10,8 +10,8 @@ This is the roadmap for **Strange Carbon: The Substrate**, curated by your Senio
 - [x] Admin Hierarchy (Promote/Demote/Torment).
 - [x] Identity Shifting (Substantiating into Admin Avatars).
 
-## 🟡 Phase 2: The Sensory Layer (Next)
-- [ ] **Weather & Atmosphere System**: Implement green acid rain in the Plaza and static-thunder in the Cathedral. Atmospheric effects should affect `Stability`.
+## 🟡 Phase 2: The Sensory Layer (In Progress)
+- [x] **Weather & Atmosphere System**: ✅ DONE! Green acid rain, static-thunder, data fog, byte hail, null wind. Affects Stability/Entropy. Admin `weather set <type>` command. Shows in room descriptions. 30-second tick cycle.
 - [ ] **The Packet Stream**: Create the high-speed "Internet" traversal zone.
 - [ ] **Somatic Damage & Healing**: Foundation for health (`Integrity`) and recovery (`Abide`).
 - [ ] **Object Persistence**: Ensure items dropped in the world remain there across server ticks.

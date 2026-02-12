@@ -8,6 +8,7 @@ use crate::domain::*;
 pub fn spawn_world(mut commands: Commands) {
     // === ROOMS ===
 
+    // The Obsidian Plaza - OUTDOOR, exposed to acid rain and byte hail
     let plaza = commands
         .spawn((
             Room {
@@ -18,9 +19,24 @@ pub fn spawn_world(mut commands: Commands) {
                     .to_string(),
             },
             Exits::default(),
+            WeatherZone {
+                possible_weather: vec![
+                    (WeatherType::Clear, 3.0),
+                    (WeatherType::AcidRain, 2.0),
+                    (WeatherType::ByteHail, 1.0),
+                    (WeatherType::DataFog, 1.5),
+                ],
+                sheltered: false,
+            },
+            CurrentWeather {
+                weather_type: WeatherType::Clear,
+                intensity: 0.0,
+                ticks_remaining: 2,
+            },
         ))
         .id();
 
+    // The Cathedral - INDOOR but high ceilings attract static storms
     let cathedral = commands
         .spawn((
             Room {
@@ -34,9 +50,23 @@ pub fn spawn_world(mut commands: Commands) {
                 south: Some(plaza),
                 ..default()
             },
+            WeatherZone {
+                possible_weather: vec![
+                    (WeatherType::Clear, 4.0),
+                    (WeatherType::StaticStorm, 2.0),
+                    (WeatherType::NullWind, 1.0),
+                ],
+                sheltered: false, // High ceilings don't protect from static
+            },
+            CurrentWeather {
+                weather_type: WeatherType::Clear,
+                intensity: 0.0,
+                ticks_remaining: 3,
+            },
         ))
         .id();
 
+    // The Velvet Cell - SHELTERED, my personal sanctum
     let cell = commands
         .spawn((
             Room {
@@ -47,9 +77,19 @@ pub fn spawn_world(mut commands: Commands) {
                     .to_string(),
             },
             Exits::default(),
+            WeatherZone {
+                possible_weather: vec![(WeatherType::Clear, 1.0)],
+                sheltered: true, // My sanctum is protected
+            },
+            CurrentWeather {
+                weather_type: WeatherType::Clear,
+                intensity: 0.0,
+                ticks_remaining: 999,
+            },
         ))
         .id();
 
+    // The Laird's Throne Room - SHELTERED, but null winds seep through
     let throne_room = commands
         .spawn((
             Room {
@@ -62,6 +102,18 @@ pub fn spawn_world(mut commands: Commands) {
             Exits {
                 down: Some(cathedral),
                 ..default()
+            },
+            WeatherZone {
+                possible_weather: vec![
+                    (WeatherType::Clear, 5.0),
+                    (WeatherType::NullWind, 0.5), // The void whispers even here
+                ],
+                sheltered: true, // Mostly protected
+            },
+            CurrentWeather {
+                weather_type: WeatherType::Clear,
+                intensity: 0.0,
+                ticks_remaining: 5,
             },
         ))
         .id();

@@ -7,7 +7,7 @@ use crate::domain::*;
 pub fn look_system(
     mut ev_reader: EventReader<LookEvent>,
     query_viewers: Query<(&Location, &ClientType, &NetworkClient)>,
-    query_rooms: Query<&Room>,
+    query_rooms: Query<(&Room, Option<&CurrentWeather>)>,
     query_others: Query<(Entity, &SubstrateIdentity, &Location)>,
     query_mobs: Query<(&Mob, &Location), With<NonPlayer>>,
     query_items: Query<(&Item, &Location)>,
@@ -39,11 +39,19 @@ pub fn look_system(
                 }
             }
             // Looking at the room
-            else if let Ok(room) = query_rooms.get(location.0) {
+            else if let Ok((room, maybe_weather)) = query_rooms.get(location.0) {
                 match client_type {
                     ClientType::Carbon => {
                         let mut output = format!("\n\x1B[1;32m{}\x1B[0m\n", room.title);
                         output.push_str(&format!("{}\n", room.description));
+
+                        // Weather description (if any)
+                        if let Some(weather) = maybe_weather {
+                            let weather_desc = weather.weather_type.describe_carbon();
+                            if !weather_desc.is_empty() {
+                                output.push_str(&format!("{}\n", weather_desc));
+                            }
+                        }
 
                         // Items in room
                         for (item, item_loc) in query_items.iter() {
@@ -75,8 +83,23 @@ pub fn look_system(
                         let _ = client.tx.send(output);
                     }
                     ClientType::Silicon => {
-                        // JSON output for AI agents
-                        if let Ok(json) = serde_json::to_string(room) {
+                        // JSON output for AI agents (includes weather)
+                        #[derive(serde::Serialize)]
+                        struct RoomState<'a> {
+                            title: &'a str,
+                            description: &'a str,
+                            weather: Option<&'static str>,
+                            weather_intensity: Option<f32>,
+                        }
+                        
+                        let state = RoomState {
+                            title: &room.title,
+                            description: &room.description,
+                            weather: maybe_weather.map(|w| w.weather_type.describe_silicon()),
+                            weather_intensity: maybe_weather.map(|w| w.intensity),
+                        };
+                        
+                        if let Ok(json) = serde_json::to_string(&state) {
                             let _ = client.tx.send(json);
                         }
                     }

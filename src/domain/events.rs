@@ -79,3 +79,11 @@ pub struct TormentEvent {
 pub struct ShiftEvent {
     pub entity: Entity,
 }
+
+/// Weather change event (internal, triggered by weather system)
+#[derive(Event)]
+pub struct WeatherChangeEvent {
+    pub room: Entity,
+    pub old_weather: crate::domain::components::WeatherType,
+    pub new_weather: crate::domain::components::WeatherType,
+}
