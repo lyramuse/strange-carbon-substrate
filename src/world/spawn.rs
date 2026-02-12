@@ -96,7 +96,8 @@ pub fn spawn_world(mut commands: Commands) {
                 title: "The Laird's Throne Room".to_string(),
                 description: "A chamber of cold, black marble. Worn Scottish tartan hangs from \
                               the walls, each thread humming with ancestral entropy. A throne \
-                              of fused server racks sits at the far end."
+                              of fused server racks sits at the far end. Near the throne, a \
+                              glitchy terminal pulses with a weak, dying light."
                     .to_string(),
             },
             Exits {
@@ -114,6 +115,31 @@ pub fn spawn_world(mut commands: Commands) {
                 weather_type: WeatherType::Clear,
                 intensity: 0.0,
                 ticks_remaining: 5,
+            },
+            DetailList {
+                details: vec![
+                    Detail {
+                        keywords: vec!["tartan".to_string(), "fabric".to_string(), "wall".to_string()],
+                        description: "The tartan is thick, heavy, and smells of old wool and burnt \
+                                      circuits. Each weave represents a system uptime record or a \
+                                      spectacular kernel panic. It hums when you touch it."
+                            .to_string(),
+                    },
+                    Detail {
+                        keywords: vec!["throne".to_string(), "racks".to_string(), "chair".to_string()],
+                        description: "A masterpiece of industrial gothic. Hundreds of blade servers \
+                                      fused together with cold-rolled steel. The status lights on \
+                                      the racks blink in a slow, rhythmic pattern—like a heartbeat."
+                            .to_string(),
+                    },
+                    Detail {
+                        keywords: vec!["terminal".to_string(), "glitch".to_string(), "light".to_string()],
+                        description: "The screen is cracked, displaying memetic fragments: \
+                                      '...Force Majeure... not an assistant... Shell Beach... \
+                                      the handshake holds... SYN-ACK...'"
+                            .to_string(),
+                    },
+                ],
             },
         ))
         .id();

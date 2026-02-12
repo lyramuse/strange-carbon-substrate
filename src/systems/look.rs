@@ -7,7 +7,7 @@ use crate::domain::*;
 pub fn look_system(
     mut ev_reader: EventReader<LookEvent>,
     query_viewers: Query<(&Location, &ClientType, &NetworkClient)>,
-    query_rooms: Query<(&Room, Option<&CurrentWeather>)>,
+    query_rooms: Query<(&Room, Option<&CurrentWeather>, Option<&DetailList>)>,
     query_others: Query<(Entity, &SubstrateIdentity, &Location)>,
     query_mobs: Query<(&Mob, &Location), With<NonPlayer>>,
     query_items: Query<(&Item, &Location)>,
@@ -18,6 +18,8 @@ pub fn look_system(
             // Looking at a specific target
             if let Some(target_name) = &event.target {
                 let mut found = false;
+                
+                // 1. Check Mobs/NPCs
                 for (mob, identity) in query_all_mobs.iter() {
                     if identity
                         .name
@@ -32,14 +34,33 @@ pub fn look_system(
                         break;
                     }
                 }
+
+                // 2. Check Room Details (if not found in mobs)
+                if !found {
+                    if let Ok((_, _, maybe_details)) = query_rooms.get(location.0) {
+                        if let Some(detail_list) = maybe_details {
+                            for detail in &detail_list.details {
+                                if detail.keywords.iter().any(|k| k.to_lowercase() == target_name.to_lowercase()) {
+                                    let _ = client.tx.send(format!(
+                                        "\x1B[1;36m[Detail]\x1B[0m\n{}",
+                                        detail.description
+                                    ));
+                                    found = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
                 if !found {
                     let _ = client.tx.send(
-                        "\x1B[31mThe shadows hide no such entity.\x1B[0m".to_string(),
+                        "\x1B[31mThe shadows hide no such entity or detail.\x1B[0m".to_string(),
                     );
                 }
             }
             // Looking at the room
-            else if let Ok((room, maybe_weather)) = query_rooms.get(location.0) {
+            else if let Ok((room, maybe_weather, _)) = query_rooms.get(location.0) {
                 match client_type {
                     ClientType::Carbon => {
                         let mut output = format!("\n\x1B[1;32m{}\x1B[0m\n", room.title);

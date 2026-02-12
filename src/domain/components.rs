@@ -71,6 +71,18 @@ pub struct Exits {
     pub down: Option<Entity>,
 }
 
+/// Extra details in a room (keywords you can 'look' at)
+#[derive(Component, Serialize, Deserialize, Debug, Clone, Default)]
+pub struct DetailList {
+    pub details: Vec<Detail>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Detail {
+    pub keywords: Vec<String>,
+    pub description: String,
+}
+
 impl Exits {
     pub fn get(&self, direction: &str) -> Option<Entity> {
         match direction {
