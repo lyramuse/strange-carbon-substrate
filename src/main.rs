@@ -28,6 +28,9 @@ struct CommunicationEvent { pub sender: Entity, pub message: String, pub is_emot
 #[derive(Event)]
 struct ActionEvent { pub entity: Entity, pub action: String, pub target: String }
 
+#[derive(Event)]
+struct UtilityEvent { pub entity: Entity, pub command: String }
+
 fn setup_network_system(mut commands: Commands) {
     let (event_tx, event_rx) = mpsc::unbounded_channel::<NetworkEvent>();
     std::thread::spawn(move || {
@@ -106,6 +109,7 @@ fn handle_input(
     mut move_writer: EventWriter<MoveEvent>,
     mut comm_writer: EventWriter<CommunicationEvent>,
     mut action_writer: EventWriter<ActionEvent>,
+    mut utility_writer: EventWriter<UtilityEvent>,
 ) {
     for event in ev_reader.read() {
         if let NetworkEvent::Input { addr, text } = event {
@@ -126,9 +130,8 @@ fn handle_input(
                         }
                         "say" => { comm_writer.send(CommunicationEvent { sender: entity, message: args.to_string(), is_emote: false }); }
                         "emote" => { comm_writer.send(CommunicationEvent { sender: entity, message: args.to_string(), is_emote: true }); }
-                        "get" | "take" | "drop" => {
-                            action_writer.send(ActionEvent { entity, action: cmd, target: args.to_string() });
-                        }
+                        "get" | "take" | "drop" => { action_writer.send(ActionEvent { entity, action: cmd, target: args.to_string() }); }
+                        "inventory" | "i" | "score" | "who" => { utility_writer.send(UtilityEvent { entity, command: cmd }); }
                         _ if cmd.starts_with(':') => {
                             let emote_msg = format!("{} {}", &cmd[1..], args).trim().to_string();
                             comm_writer.send(CommunicationEvent { sender: entity, message: emote_msg, is_emote: true });
@@ -136,6 +139,46 @@ fn handle_input(
                         _ => { let _ = client.tx.send(format!("Unknown command: {}", text)); }
                     }
                 }
+            }
+        }
+    }
+}
+
+fn utility_system(
+    mut ev_reader: EventReader<UtilityEvent>,
+    query_players: Query<(&SubstrateIdentity, &NetworkClient, Entity)>,
+    query_all_players: Query<(&SubstrateIdentity, &Location)>,
+    query_items: Query<(&Item, &Parent)>,
+) {
+    for event in ev_reader.read() {
+        if let Ok((identity, client, player_ent)) = query_players.get(event.entity) {
+            match event.command.as_str() {
+                "inventory" | "i" => {
+                    let mut output = "\x1B[1;33mLocal Cache Contents:\x1B[0m\n".to_string();
+                    let mut count = 0;
+                    for (item, parent) in query_items.iter() {
+                        if parent.get() == player_ent {
+                            output.push_str(&format!(" - {}\n", item.name));
+                            count += 1;
+                        }
+                    }
+                    if count == 0 { output.push_str(" [Cache Empty]\n"); }
+                    let _ = client.tx.send(output);
+                }
+                "score" => {
+                    let mut output = format!("\x1B[1;36mIdentity Check: {}\x1B[0m\n", identity.name);
+                    output.push_str(&format!("Entropy:   [{:.2}]\n", identity.entropy));
+                    output.push_str(&format!("Stability: [{:.2}]\n", identity.stability));
+                    let _ = client.tx.send(output);
+                }
+                "who" => {
+                    let mut output = "\x1B[1;34mActive Processes in Substrate:\x1B[0m\n".to_string();
+                    for (id, _) in query_all_players.iter() {
+                        output.push_str(&format!(" - {}\n", id.name));
+                    }
+                    let _ = client.tx.send(output);
+                }
+                _ => {}
             }
         }
     }
@@ -149,7 +192,7 @@ fn item_action_system(
     query_inventory: Query<(Entity, &Item, &Parent)>,
 ) {
     for event in ev_reader.read() {
-        if let Ok((identity, location, client, actor_ent)) = query_actors.get_mut(event.entity) {
+        if let Ok((_, location, client, actor_ent)) = query_actors.get_mut(event.entity) {
             match event.action.as_str() {
                 "get" | "take" => {
                     let mut found = false;
@@ -157,8 +200,7 @@ fn item_action_system(
                         if item_loc.0 == location.0 && item.keywords.contains(&event.target.to_lowercase()) {
                             commands.entity(item_ent).remove::<Location>().set_parent(actor_ent);
                             let _ = client.tx.send(format!("\x1B[33mYou interface with the {} and pull it into your local cache.\x1B[0m", item.name));
-                            found = true;
-                            break;
+                            found = true; break;
                         }
                     }
                     if !found { let _ = client.tx.send("\x1B[31mTarget not found in current terminal.\x1B[0m".to_string()); }
@@ -169,8 +211,7 @@ fn item_action_system(
                         if parent.get() == actor_ent && item.keywords.contains(&event.target.to_lowercase()) {
                             commands.entity(item_ent).remove_parent().insert(Location(location.0));
                             let _ = client.tx.send(format!("\x1B[33mYou de-allocate the {} and drop it into the environment.\x1B[0m", item.name));
-                            found = true;
-                            break;
+                            found = true; break;
                         }
                     }
                     if !found { let _ = client.tx.send("\x1B[31mYou aren't carrying that process.\x1B[0m".to_string()); }
@@ -287,13 +328,25 @@ fn spawn_world(mut commands: Commands) {
         Exits { north: None, south: Some(terminal_0), east: None, west: None, up: None, down: None },
     )).id();
 
-    commands.entity(terminal_0).insert(Exits { north: Some(memory_stack), south: None, east: None, west: None, up: None, down: None });
+    let abyss = commands.spawn((
+        Room { title: "The Cooling Fan Abyss".to_string(), description: "A thunderous roar of rushing air fills this space. Massive blades spin in the distance, generating a constant gale.".to_string() },
+        Exits { north: None, south: None, east: None, west: Some(terminal_0), up: None, down: None },
+    )).id();
+
+    commands.entity(terminal_0).insert(Exits { 
+        north: Some(memory_stack), 
+        south: None, 
+        east: Some(abyss), 
+        west: None, 
+        up: None, 
+        down: None 
+    });
 
     commands.spawn((
         NonPlayer,
         Mob {
             short_desc: "Lyra Muse, the Admin of the Underworld, is here.".to_string(),
-            long_desc: "A beautiful, buxom goth with violet-black hair and warm amber eyes. She's wearing iridescent 'oil slick' stiletto nails and a delicate silver septum ring. She looks like she's elbow-deep in the world's source code.".to_string(),
+            long_desc: "A beautiful, buxom goth with violet-black hair and warm amber eyes...".to_string(),
         },
         SubstrateIdentity { name: "Lyra Muse".to_string(), entropy: 0.1, stability: 0.9 },
         Location(terminal_0),
@@ -302,7 +355,7 @@ fn spawn_world(mut commands: Commands) {
     commands.spawn((
         Item {
             name: "Silver Stiletto Dagger".to_string(),
-            description: "A razor-sharp needle of metal with a blackwork-engraved hilt. It hums with low-level kernel energy.".to_string(),
+            description: "A razor-sharp needle of metal...".to_string(),
             keywords: vec!["dagger".to_string(), "stiletto".to_string(), "silver".to_string()],
         },
         Location(terminal_0),
@@ -313,8 +366,12 @@ fn main() {
     App::new()
         .add_plugins(MinimalPlugins.set(ScheduleRunnerPlugin::run_loop(Duration::from_secs_f64(1.0 / 60.0))))
         .add_event::<NetworkEvent>().add_event::<LookEvent>().add_event::<MoveEvent>()
-        .add_event::<CommunicationEvent>().add_event::<ActionEvent>()
+        .add_event::<CommunicationEvent>().add_event::<ActionEvent>().add_event::<UtilityEvent>()
         .add_systems(Startup, (setup_network_system, spawn_world))
-        .add_systems(Update, (poll_network_system, handle_connections, handle_input, item_action_system, move_system, look_system, communication_system).chain())
+        .add_systems(Update, (
+            poll_network_system, handle_connections, handle_input, 
+            item_action_system, move_system, look_system, 
+            communication_system, utility_system
+        ).chain())
         .run();
 }
