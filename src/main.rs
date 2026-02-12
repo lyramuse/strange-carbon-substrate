@@ -62,6 +62,8 @@ fn main() {
                 // Atmosphere
                 weather_tick_system,
                 weather_announce_system,
+                // Reality
+                phase_system,
             )
                 .chain(),
         )

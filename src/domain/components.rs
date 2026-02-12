@@ -83,6 +83,24 @@ pub struct Detail {
     pub description: String,
 }
 
+/// Coherence - Reality stability for an entity (Phase 2.3)
+#[derive(Component, Serialize, Deserialize, Debug, Clone)]
+pub struct Coherence {
+    pub value: f32,          // 0.0 (ghostly) to 1.0 (solid)
+    pub is_phasing: bool,    // Does it fluctuate?
+    pub drift_rate: f32,     // How fast it changes
+}
+
+impl Default for Coherence {
+    fn default() -> Self {
+        Self {
+            value: 1.0,
+            is_phasing: false,
+            drift_rate: 0.0,
+        }
+    }
+}
+
 impl Exits {
     pub fn get(&self, direction: &str) -> Option<Entity> {
         match direction {

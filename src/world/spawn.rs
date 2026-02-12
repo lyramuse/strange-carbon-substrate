@@ -141,6 +141,11 @@ pub fn spawn_world(mut commands: Commands) {
                     },
                 ],
             },
+            Coherence {
+                value: 0.5,
+                is_phasing: true,
+                drift_rate: 0.2,
+            },
         ))
         .id();
 

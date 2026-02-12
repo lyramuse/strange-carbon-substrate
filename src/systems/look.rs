@@ -15,6 +15,14 @@ pub fn look_system(
 ) {
     for event in ev_reader.read() {
         if let Ok((location, client_type, client)) = query_viewers.get(event.entity) {
+            // Check if viewer is coherent enough to see
+            if let Ok((coh, _, _)) = query_viewers.get(event.entity) {
+                if coh.value < 0.2 {
+                    let _ = client.tx.send("\x1B[90mThe world is a blur of grey static. You cannot focus on anything.\x1B[0m".to_string());
+                    continue;
+                }
+            }
+
             // Looking at a specific target
             if let Some(target_name) = &event.target {
                 let mut found = false;
