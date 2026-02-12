@@ -5,8 +5,8 @@ use tokio::sync::mpsc;
 
 #[derive(Component, Debug, Serialize, Deserialize)]
 pub enum ClientType {
-    Carbon,  // Human (Telnet/Prose)
-    Silicon, // AI (JSON/Data)
+    Carbon,
+    Silicon,
 }
 
 #[derive(Component)]
@@ -49,3 +49,13 @@ pub struct Exits {
     pub up: Option<Entity>,
     pub down: Option<Entity>,
 }
+
+#[derive(Component, Serialize, Deserialize, Debug, Clone)]
+pub struct Item {
+    pub name: String,
+    pub description: String,
+    pub keywords: Vec<String>,
+}
+
+#[derive(Component, Serialize, Deserialize, Debug, Clone)]
+pub struct Inventory;
