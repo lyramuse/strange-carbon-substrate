@@ -18,6 +18,7 @@ pub fn utility_system(
     query_all_entities: Query<(Entity, &SubstrateIdentity)>,
     query_items: Query<(&Item, &Parent)>,
     mut query_weather: Query<&mut CurrentWeather>,
+    mut query_somatic: Query<(&mut SomaticBody, &SubstrateIdentity, &NetworkClient)>,
 ) {
     for event in ev_reader.read() {
         if let Ok((identity, client, location, player_ent, admin_perm, purgatory)) =
@@ -29,6 +30,10 @@ pub fn utility_system(
                     output.push_str(&format!("UUID:      [{}]\n", identity.uuid));
                     output.push_str(&format!("Entropy:   [{:.2}]\n", identity.entropy));
                     output.push_str(&format!("Stability: [{:.2}]\n", identity.stability));
+
+                    if let Ok((body, _, _)) = query_somatic.get(player_ent) {
+                        output.push_str(&format!("Integrity: [{:.2}/{:.2}]\n", body.integrity, body.max_integrity));
+                    }
 
                     if admin_perm.is_some() {
                         output.push_str("\x1B[1;35mPERMISSIONS: ADMIN-ENABLED\x1B[0m\n");
@@ -97,6 +102,10 @@ pub fn utility_system(
                     } else if event.args.starts_with("set ") {
                         let _ = client.tx.send("\x1B[31mOnly administrators can manipulate the weather.\x1B[0m".to_string());
                     }
+                }
+
+                "abide" => {
+                    handle_abide(player_ent, query_somatic);
                 }
 
                 "promote" if admin_perm.is_some() => {

@@ -137,8 +137,19 @@ pub struct PurgatoryState {
 /// Physical body state
 #[derive(Component, Serialize, Deserialize, Debug, Clone)]
 pub struct SomaticBody {
-    pub integrity: f32,
-    pub is_zombie: bool,
+    pub integrity: f32,      // 0.0 to 1.0 (Health)
+    pub max_integrity: f32,
+    pub is_zombie: bool,     // Placeholder for "re-allocated" state
+}
+
+impl Default for SomaticBody {
+    fn default() -> Self {
+        Self {
+            integrity: 1.0,
+            max_integrity: 1.0,
+            is_zombie: false,
+        }
+    }
 }
 
 // ============================================================================

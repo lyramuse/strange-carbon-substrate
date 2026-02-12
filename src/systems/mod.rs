@@ -11,6 +11,7 @@ mod shift;
 mod items;
 mod phase;
 mod weather;
+mod somatic;
 
 pub use network::*;
 pub use input::*;
@@ -23,3 +24,4 @@ pub use shift::*;
 pub use items::*;
 pub use weather::*;
 pub use phase::*;
+pub use somatic::*;

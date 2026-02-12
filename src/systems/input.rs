@@ -93,7 +93,7 @@ pub fn handle_input(
                     }
 
                     // Utility
-                    "inventory" | "i" | "score" | "who" | "promote" | "demote" | "link" | "weather" => {
+                    "inventory" | "i" | "score" | "who" | "promote" | "demote" | "link" | "weather" | "abide" => {
                         utility_writer.write(UtilityEvent {
                             entity,
                             command: cmd,
