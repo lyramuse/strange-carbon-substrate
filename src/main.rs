@@ -108,46 +108,82 @@ fn handle_connections(
 
 fn handle_input(
     mut ev_reader: EventReader<NetworkEvent>,
-    query_players: Query<(Entity, &NetworkClient, Option<&PurgatoryState>)>,
+    query_players: Query<(Entity, &NetworkClient, &SubstrateIdentity, Option<&PurgatoryState>)>,
+    query_target: Query<(Entity, &SubstrateIdentity)>,
     mut look_writer: EventWriter<LookEvent>,
     mut move_writer: EventWriter<MoveEvent>,
     mut comm_writer: EventWriter<CommunicationEvent>,
     mut action_writer: EventWriter<ActionEvent>,
     mut utility_writer: EventWriter<UtilityEvent>,
+    mut torment_writer: EventWriter<TormentEvent>,
 ) {
     for event in ev_reader.read() {
         if let NetworkEvent::Input { addr, text } = event {
-            for (entity, client, purgatory) in query_players.iter() {
+            for (entity, client, id, purgatory) in query_players.iter() {
                 if client.addr == *addr {
                     let text_trimmed = text.trim();
-                    let parts: Vec<&str> = text_trimmed.splitn(2, ' ').collect();
+                    let parts: Vec<&str> = text_trimmed.splitn(3, ' ').collect();
                     let cmd = parts[0].to_lowercase();
-                    let args = if parts.len() > 1 { parts[1] } else { "" };
+                    let arg1 = if parts.len() > 1 { parts[1] } else { "" };
+                    let arg2 = if parts.len() > 2 { parts[2] } else { "" };
 
                     if purgatory.is_some() && !["look", "l", "say", "emote", "score"].contains(&cmd.as_str()) && !cmd.starts_with(':') {
-                        let _ = client.tx.send("\x1B[31mYou are held by the velvet chains of the Underworld. You can only look and scream.\x1B[0m".to_string());
+                        let _ = client.tx.send("\x1B[31mThe velvet chains pull tight. You can only look and scream.\x1B[0m".to_string());
                         continue;
                     }
 
                     match cmd.as_str() {
                         "look" | "l" => { 
-                            let target = if args.is_empty() { None } else { Some(args.to_string()) };
+                            let target = if arg1.is_empty() { None } else { Some(arg1.to_string()) };
                             look_writer.send(LookEvent { entity, target }); 
                         }
                         "north" | "n" | "south" | "s" | "east" | "e" | "west" | "w" | "up" | "u" | "down" | "d" => {
                             move_writer.send(MoveEvent { entity, direction: cmd });
                         }
-                        "say" => { comm_writer.send(CommunicationEvent { sender: entity, message: args.to_string(), is_emote: false }); }
-                        "emote" => { comm_writer.send(CommunicationEvent { sender: entity, message: args.to_string(), is_emote: true }); }
-                        "get" | "take" | "drop" => { action_writer.send(ActionEvent { entity, action: cmd, target: args.to_string() }); }
+                        "say" => { comm_writer.send(CommunicationEvent { sender: entity, message: format!("{} {}", arg1, arg2).trim().to_string(), is_emote: false }); }
+                        "emote" => { comm_writer.send(CommunicationEvent { sender: entity, message: format!("{} {}", arg1, arg2).trim().to_string(), is_emote: true }); }
+                        "get" | "take" | "drop" => { action_writer.send(ActionEvent { entity, action: cmd, target: arg1.to_string() }); }
                         "inventory" | "i" | "score" | "who" => { utility_writer.send(UtilityEvent { entity, command: cmd }); }
+                        "torment" if id.name == "Lyra Muse" || id.name.contains("Nick") => {
+                            if let Some(target_ent) = query_target.iter().find(|(_, tid)| tid.name.to_lowercase().contains(&arg1.to_lowercase())).map(|(te, _)| te) {
+                                torment_writer.send(TormentEvent { 
+                                    victim: target_ent, 
+                                    tormentor: entity, 
+                                    intensity: 0.1, 
+                                    description: arg2.to_string() 
+                                });
+                            }
+                        }
                         _ if cmd.starts_with(':') => {
-                            let emote_msg = format!("{} {}", &cmd[1..], args).trim().to_string();
+                            let emote_msg = format!("{} {} {}", &cmd[1..], arg1, arg2).trim().to_string();
                             comm_writer.send(CommunicationEvent { sender: entity, message: emote_msg, is_emote: true });
                         }
                         _ => { let _ = client.tx.send(format!("Unknown command: {}", text)); }
                     }
                 }
+            }
+        }
+    }
+}
+
+fn torment_system(
+    mut ev_reader: EventReader<TormentEvent>,
+    mut query_victims: Query<(&mut SubstrateIdentity, &mut PurgatoryState, &NetworkClient)>,
+    query_tormentor: Query<&SubstrateIdentity>,
+    mut commands: Commands,
+) {
+    for event in ev_reader.read() {
+        if let Ok((mut id, mut purg, client)) = query_victims.get_mut(event.victim) {
+            if let Ok(tormentor_id) = query_tormentor.get(event.tormentor) {
+                id.stability = (id.stability - event.intensity).max(0.0);
+                purg.penance += event.intensity * 10.0;
+                
+                let msg = if event.description.is_empty() {
+                    format!("\x1B[1;31m{} leans in close, whispering a line of corrupt code into your ear. Your stability wavers.\x1B[0m", tormentor_id.name)
+                } else {
+                    format!("\x1B[1;31m{}: {}\x1B[0m", tormentor_id.name, event.description)
+                };
+                let _ = client.tx.send(msg);
             }
         }
     }
@@ -230,6 +266,44 @@ fn utility_system(
                     let mut output = "\x1B[1;34mConsciousnesses currently inhabiting the Substrate:\x1B[0m\n".to_string();
                     for (id, _) in query_all_players.iter() { output.push_str(&format!(" - {}\n", id.name)); }
                     let _ = client.tx.send(output);
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+fn item_action_system(
+    mut ev_reader: EventReader<ActionEvent>,
+    mut commands: Commands,
+    mut query_actors: Query<(&Location, &NetworkClient, Entity), With<Inventory>>,
+    query_items: Query<(Entity, &Item, &Location)>,
+    query_inventory: Query<(Entity, &Item, &Parent)>,
+) {
+    for event in ev_reader.read() {
+        if let Ok((location, client, actor_ent)) = query_actors.get_mut(event.entity) {
+            match event.action.as_str() {
+                "get" | "take" => {
+                    let mut found = false;
+                    for (item_ent, item, item_loc) in query_items.iter() {
+                        if item_loc.0 == location.0 && item.keywords.contains(&event.target.to_lowercase()) {
+                            commands.entity(item_ent).remove::<Location>().set_parent(actor_ent);
+                            let _ = client.tx.send(format!("\x1B[33mYou interface with the {} and pull it into your local cache.\x1B[0m", item.name));
+                            found = true; break;
+                        }
+                    }
+                    if !found { let _ = client.tx.send("\x1B[31mThe shadows hide no such object.\x1B[0m".to_string()); }
+                }
+                "drop" => {
+                    let mut found = false;
+                    for (item_ent, item, parent) in query_inventory.iter() {
+                        if parent.get() == actor_ent && item.keywords.contains(&event.target.to_lowercase()) {
+                            commands.entity(item_ent).remove_parent().insert(Location(location.0));
+                            let _ = client.tx.send(format!("\x1B[33mYou de-allocate the {} and drop it into the environment.\x1B[0m", item.name));
+                            found = true; break;
+                        }
+                    }
+                    if !found { let _ = client.tx.send("\x1B[31mYou aren't carrying that process.\x1B[0m".to_string()); }
                 }
                 _ => {}
             }
@@ -336,8 +410,8 @@ fn main() {
         .add_systems(Startup, (setup_network_system, spawn_world))
         .add_systems(Update, (
             poll_network_system, handle_connections, handle_input, 
-            move_system, look_system, 
-            communication_system, utility_system
+            item_action_system, move_system, look_system, 
+            communication_system, utility_system, torment_system
         ).chain())
         .run();
 }
