@@ -23,6 +23,15 @@ pub struct SubstrateIdentity {
 }
 
 #[derive(Component, Serialize, Deserialize, Debug, Clone)]
+pub struct NonPlayer;
+
+#[derive(Component, Serialize, Deserialize, Debug, Clone)]
+pub struct Mob {
+    pub short_desc: String,
+    pub long_desc: String,
+}
+
+#[derive(Component, Serialize, Deserialize, Debug, Clone)]
 pub struct Room {
     pub title: String,
     pub description: String,

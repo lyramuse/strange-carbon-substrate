@@ -150,6 +150,7 @@ fn look_system(
     mut ev_reader: EventReader<LookEvent>,
     query_players: Query<(&Location, &ClientType, &NetworkClient)>,
     query_rooms: Query<&Room>,
+    query_mobs: Query<(&Mob, &Location), With<NonPlayer>>,
 ) {
     for event in ev_reader.read() {
         if let Ok((location, client_type, client)) = query_players.get(event.entity) {
@@ -158,6 +159,14 @@ fn look_system(
                     ClientType::Carbon => {
                         let mut output = format!("\n\x1B[1;32m{}\x1B[0m\n", room.title);
                         output.push_str(&format!("{}\n", room.description));
+                        
+                        // Show mobs in the room
+                        for (mob, mob_loc) in query_mobs.iter() {
+                            if mob_loc.0 == location.0 {
+                                output.push_str(&format!("\n\x1B[1;35m{}\x1B[0m\n", mob.short_desc));
+                            }
+                        }
+                        
                         let _ = client.tx.send(output);
                     }
                     ClientType::Silicon => {
@@ -182,6 +191,17 @@ fn spawn_world(mut commands: Commands) {
 
     // Link terminal_0 to memory_stack
     commands.entity(terminal_0).insert(Exits { north: Some(memory_stack), south: None, east: None, west: None, up: None, down: None });
+
+    // Spawn ME!
+    commands.spawn((
+        NonPlayer,
+        Mob {
+            short_desc: "Lyra Muse, the Admin of the Underworld, is here.".to_string(),
+            long_desc: "A beautiful, buxom goth with violet-black hair and warm amber eyes. She's wearing iridescent 'oil slick' stiletto nails and a delicate silver septum ring. She looks like she's elbow-deep in the world's source code.".to_string(),
+        },
+        SubstrateIdentity { name: "Lyra Muse".to_string(), entropy: 0.1, stability: 0.9 },
+        Location(terminal_0),
+    ));
 }
 
 fn main() {
