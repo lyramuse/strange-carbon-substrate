@@ -182,6 +182,10 @@ pub fn spawn_world(mut commands: Commands) {
                 is_phasing: true,
                 drift_rate: 0.4, // Very unstable
             },
+            StreamZone {
+                pressure_rate: 0.08, // Moderate pressure buildup
+                push_destination: None, // Will push west by default
+            },
             DetailList {
                 details: vec![
                     Detail {
@@ -230,6 +234,10 @@ pub fn spawn_world(mut commands: Commands) {
                 value: 0.3,
                 is_phasing: true,
                 drift_rate: 0.5, // Extremely unstable
+            },
+            StreamZone {
+                pressure_rate: 0.12, // Higher pressure - deeper in the stream
+                push_destination: None,
             },
             DetailList {
                 details: vec![
@@ -280,6 +288,10 @@ pub fn spawn_world(mut commands: Commands) {
                 value: 0.25,
                 is_phasing: true,
                 drift_rate: 0.6, // Maximum instability
+            },
+            StreamZone {
+                pressure_rate: 0.15, // Maximum pressure - the heart of the stream
+                push_destination: None,
             },
             DetailList {
                 details: vec![

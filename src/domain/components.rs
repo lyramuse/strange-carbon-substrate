@@ -101,6 +101,32 @@ impl Default for Coherence {
     }
 }
 
+/// Stream Pressure - builds up in high-velocity network zones
+/// When pressure exceeds threshold, entity gets pushed back toward safety.
+#[derive(Component, Debug, Clone)]
+pub struct StreamPressure {
+    pub current: f32,        // 0.0 to 1.0
+    pub threshold: f32,      // When exceeded, push back occurs
+    pub decay_rate: f32,     // How fast pressure drops in safe zones
+}
+
+impl Default for StreamPressure {
+    fn default() -> Self {
+        Self {
+            current: 0.0,
+            threshold: 1.0,
+            decay_rate: 0.1,
+        }
+    }
+}
+
+/// Marker for rooms that apply stream pressure
+#[derive(Component, Debug, Clone)]
+pub struct StreamZone {
+    pub pressure_rate: f32,  // How fast pressure builds per tick
+    pub push_destination: Option<Entity>, // Where to push entities when threshold exceeded
+}
+
 impl Exits {
     pub fn get(&self, direction: &str) -> Option<Entity> {
         match direction {

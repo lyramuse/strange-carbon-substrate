@@ -64,6 +64,8 @@ fn main() {
                 weather_announce_system,
                 // Reality
                 phase_system,
+                // Network pressure
+                stream_pressure_system,
             )
                 .chain(),
         )

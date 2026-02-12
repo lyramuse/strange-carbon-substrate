@@ -12,6 +12,7 @@ mod items;
 mod phase;
 mod weather;
 mod somatic;
+mod stream;
 
 pub use network::*;
 pub use input::*;
@@ -25,3 +26,4 @@ pub use items::*;
 pub use weather::*;
 pub use phase::*;
 pub use somatic::*;
+pub use stream::*;
