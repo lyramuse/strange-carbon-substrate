@@ -14,9 +14,11 @@ pub struct NetworkClient {
 
 #[derive(Component, Serialize, Deserialize, Debug, Clone)]
 pub struct SubstrateIdentity {
+    pub uuid: String,
     pub name: String,
     pub entropy: f32,
     pub stability: f32,
+    pub is_admin: bool,
 }
 
 #[derive(Component, Serialize, Deserialize, Debug, Clone)]

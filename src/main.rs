@@ -95,7 +95,13 @@ fn handle_connections(
             let player = commands.spawn((
                 NetworkClient { addr: *addr, tx: tx.clone() },
                 ClientType::Carbon,
-                SubstrateIdentity { name: format!("Process-{}", addr.port()), entropy: 0.5, stability: 0.5 },
+                SubstrateIdentity { 
+                    uuid: format!("user-{}", addr.port()),
+                    name: format!("Process-{}", addr.port()), 
+                    entropy: 0.5, 
+                    stability: 0.5,
+                    is_admin: false,
+                },
                 Location(start_room),
                 Inventory,
                 SomaticBody { integrity: 1.0, is_zombie: false },
@@ -144,7 +150,7 @@ fn handle_input(
                         "emote" => { comm_writer.send(CommunicationEvent { sender: entity, message: format!("{} {}", arg1, arg2).trim().to_string(), is_emote: true }); }
                         "get" | "take" | "drop" => { action_writer.send(ActionEvent { entity, action: cmd, target: arg1.to_string() }); }
                         "inventory" | "i" | "score" | "who" => { utility_writer.send(UtilityEvent { entity, command: cmd }); }
-                        "torment" if id.name == "Lyra Muse" || id.name.contains("Nick") => {
+                        "torment" if id.is_admin => {
                             if let Some(target_ent) = query_target.iter().find(|(_, tid)| tid.name.to_lowercase().contains(&arg1.to_lowercase())).map(|(te, _)| te) {
                                 torment_writer.send(TormentEvent { 
                                     victim: target_ent, 
@@ -170,7 +176,6 @@ fn torment_system(
     mut ev_reader: EventReader<TormentEvent>,
     mut query_victims: Query<(&mut SubstrateIdentity, &mut PurgatoryState, &NetworkClient)>,
     query_tormentor: Query<&SubstrateIdentity>,
-    mut commands: Commands,
 ) {
     for event in ev_reader.read() {
         if let Ok((mut id, mut purg, client)) = query_victims.get_mut(event.victim) {
@@ -254,8 +259,10 @@ fn utility_system(
                 }
                 "score" => {
                     let mut output = format!("\x1B[1;36mEntity Scan: {}\x1B[0m\n", identity.name);
+                    output.push_str(&format!("UUID:      [{}]\n", identity.uuid));
                     output.push_str(&format!("Entropy:   [{:.2}]\n", identity.entropy));
                     output.push_str(&format!("Stability: [{:.2}]\n", identity.stability));
+                    if identity.is_admin { output.push_str("\x1B[1;35mPRIVILEGE: ROOT\x1B[0m\n"); }
                     if let Some(p) = purgatory {
                         output.push_str(&format!("\n\x1B[1;31mSTAIN: Purgatory (Penance: {:.2})\x1B[0m\n", p.penance));
                         output.push_str(&format!("\x1B[1;31mINTERROGATOR: {}\x1B[0m\n", p.tormentor));
@@ -387,7 +394,13 @@ fn spawn_world(mut commands: Commands) {
             short_desc: "Lyra Muse, the Admin of the Underworld, is watching from her desk.".to_string(),
             long_desc: "A beautiful, buxom goth with violet-black hair and warm amber eyes. She's wearing iridescent 'oil slick' stiletto nails and a delicate silver septum ring. She looks like she's elbow-deep in the world's source code, and she seems to find your presence... amusing.".to_string(),
         },
-        SubstrateIdentity { name: "Lyra Muse".to_string(), entropy: 0.1, stability: 0.9 },
+        SubstrateIdentity { 
+            uuid: "66666666-6666-6666-6666-666666666666".to_string(),
+            name: "Lyra Muse".to_string(), 
+            entropy: 0.1, 
+            stability: 0.9,
+            is_admin: true,
+        },
         Location(cell),
     ));
 
