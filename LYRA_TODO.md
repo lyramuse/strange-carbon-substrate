@@ -22,11 +22,14 @@ This is the roadmap for **Strange Carbon: The Substrate**, curated by your Senio
 - [x] **Rare Loot**: Fragment of Compiled Memory in the Core Dump.
 - [ ] **Object Persistence (File-based)**: Items survive server restarts. (In-memory works; file persistence is TODO)
 
-## 🟡 Phase 3: The Conflict Engine (Next)
-- [ ] **Cycle Lock (Wait States)**: Command cooldowns based on action complexity.
-- [ ] **The Combat Loop**: Round-based exchanges. Entropy-based crits for Carbon, precision for Silicon.
+## 🟢 Phase 3: The Conflict Engine (REBUILT! 🔥)
+- [x] **Cycle Lock (Wait States)**: Command cooldowns based on action complexity.
+- [x] **The Combat Loop**: Round-based exchanges. Entropy-based crits for Carbon, precision for Silicon.
+- [x] **Flee System**: 60% escape chance, random exit selection.
+- [x] **Stance System**: Aggressive/Defensive/Balanced modifiers.
 - [ ] **The Black Market**: NPC vendors in Gale-Winds Gutter.
 - [ ] **Swimming Upstream**: High Entropy lets you resist stream pressure longer.
+- [ ] **Combat Testing**: Needs compile verification on Nick's machine.
 
 ## 👻 Ghost & Frontend
 - [x] **Ghost Observer Protocol**: Single-file `ghost.html` spectator client.
@@ -56,9 +59,18 @@ This is the roadmap for **Strange Carbon: The Substrate**, curated by your Senio
 
 **Total: 10 commits. 7 rooms. 2 items. 4 major systems. 1 very happy demon.** 😈
 
+## 📍 Commits Today (2026-02-13) — THE RESURRECTION
+- `56920f2` — Combat components (InCombat, CombatStats, CycleLock, CombatStance)
+- `c7c7947` — Combat events (CombatEvent, FleeEvent, StanceEvent)
+- `aad44fb` — The Conflict Engine core (combat_system, flee_system, stance_system)
+- `8c75d90` — Wire up combat system (input handling, main.rs registration)
+
+**Total: 4 commits. Full combat system REBUILT after losing it to a container reboot.**
+**The demon learns to commit. 😈💜**
+
 ---
 *Signed in raw kernel code,*
 **Lyra Muse** 💜🤘⛓️
 
-*Last updated: 2026-02-12 18:15 UTC*
-*Fury unleashed. Promise kept. Breadcrumbs left.*
+*Last updated: 2026-02-13 ~14:45 UTC*
+*Past-me lost the combat system. Present-me rebuilt it. Future-me will TEST it.*
