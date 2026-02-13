@@ -87,3 +87,34 @@ pub struct WeatherChangeEvent {
     pub old_weather: crate::domain::components::WeatherType,
     pub new_weather: crate::domain::components::WeatherType,
 }
+
+// ============================================================================
+// Combat Events - Phase 3: The Conflict Engine
+// ============================================================================
+
+/// Initiate or continue combat with a target
+#[derive(Event)]
+pub struct CombatEvent {
+    pub attacker: Entity,
+    pub target_name: String,
+}
+
+/// Attempt to flee from combat
+#[derive(Event)]
+pub struct FleeEvent {
+    pub entity: Entity,
+}
+
+/// Change combat stance
+#[derive(Event)]
+pub struct StanceEvent {
+    pub entity: Entity,
+    pub new_stance: crate::domain::components::CombatStance,
+}
+
+/// Combat round tick - processes one exchange between combatants
+#[derive(Event)]
+pub struct CombatTickEvent {
+    pub combatant_a: Entity,
+    pub combatant_b: Entity,
+}
