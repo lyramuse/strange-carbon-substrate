@@ -13,6 +13,7 @@ mod phase;
 mod weather;
 mod somatic;
 mod stream;
+mod combat;
 
 pub use network::*;
 pub use input::*;
@@ -27,3 +28,4 @@ pub use weather::*;
 pub use phase::*;
 pub use somatic::*;
 pub use stream::*;
+pub use combat::*;

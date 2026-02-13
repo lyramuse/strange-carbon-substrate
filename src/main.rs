@@ -41,6 +41,12 @@ fn main() {
         .add_event::<TormentEvent>()
         .add_event::<ShiftEvent>()
         .add_event::<WeatherChangeEvent>()
+        .add_event::<CombatEvent>()
+        .add_event::<FleeEvent>()
+        .add_event::<StanceEvent>()
+        .add_event::<CombatTickEvent>()
+        // Resources
+        .init_resource::<WorldTime>()
         // Startup systems
         .add_systems(Startup, (setup_network_system, spawn_world, setup_weather_system))
         // Update systems - chained for proper ordering
@@ -66,6 +72,12 @@ fn main() {
                 phase_system,
                 // Network pressure
                 stream_pressure_system,
+                // Combat
+                world_time_system,
+                combat_system,
+                flee_system,
+                stance_system,
+                cycle_lock_cleanup_system,
             )
                 .chain(),
         )

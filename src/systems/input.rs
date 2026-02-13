@@ -21,6 +21,9 @@ pub fn handle_input(
     mut utility_writer: EventWriter<UtilityEvent>,
     mut torment_writer: EventWriter<TormentEvent>,
     mut shift_writer: EventWriter<ShiftEvent>,
+    mut combat_writer: EventWriter<CombatEvent>,
+    mut flee_writer: EventWriter<FleeEvent>,
+    mut stance_writer: EventWriter<StanceEvent>,
 ) {
     for event in ev_reader.read() {
         if let NetworkEvent::Input { addr, text } = event {
@@ -104,6 +107,41 @@ pub fn handle_input(
                     // Admin: Shift
                     "shift" | "substantiate" if admin_perm.is_some() => {
                         shift_writer.write(ShiftEvent { entity });
+                    }
+
+                    // Combat commands
+                    "attack" | "kill" | "hit" => {
+                        if arg1.is_empty() {
+                            let _ = client.tx.send(
+                                "\x1B[33mAttack whom? (attack <target>)\x1B[0m".to_string()
+                            );
+                        } else {
+                            combat_writer.write(CombatEvent {
+                                attacker: entity,
+                                target_name: arg1.to_string(),
+                            });
+                        }
+                    }
+
+                    "flee" | "escape" | "run" => {
+                        flee_writer.write(FleeEvent { entity });
+                    }
+
+                    "stance" => {
+                        let new_stance = match arg1.to_lowercase().as_str() {
+                            "aggressive" | "agg" | "attack" => Some(CombatStance::Aggressive),
+                            "defensive" | "def" | "defend" => Some(CombatStance::Defensive),
+                            "balanced" | "bal" | "normal" => Some(CombatStance::Balanced),
+                            _ => None,
+                        };
+                        
+                        if let Some(stance) = new_stance {
+                            stance_writer.write(StanceEvent { entity, new_stance: stance });
+                        } else {
+                            let _ = client.tx.send(
+                                "\x1B[33mStance options: aggressive, defensive, balanced\x1B[0m".to_string()
+                            );
+                        }
                     }
 
                     // Admin: Torment
