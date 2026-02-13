@@ -273,3 +273,85 @@ pub struct CurrentWeather {
     pub intensity: f32,        // 0.0 to 1.0
     pub ticks_remaining: u32,  // How long until weather changes
 }
+
+// ============================================================================
+// Combat System - Phase 3: The Conflict Engine
+// ============================================================================
+
+/// Combat state - tracks active combat engagement
+#[derive(Component, Debug, Clone)]
+pub struct InCombat {
+    pub opponent: Entity,
+    pub rounds_fought: u32,
+    pub stance: CombatStance,
+}
+
+/// Combat stance affects hit/damage calculations
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CombatStance {
+    Aggressive,   // +damage, -defense
+    Defensive,    // -damage, +defense
+    Balanced,     // neutral
+}
+
+impl Default for CombatStance {
+    fn default() -> Self {
+        CombatStance::Balanced
+    }
+}
+
+/// Combat statistics for an entity
+#[derive(Component, Debug, Clone)]
+pub struct CombatStats {
+    pub attack: f32,          // Base attack power (0.1 - 1.0)
+    pub defense: f32,         // Damage reduction (0.0 - 0.5)
+    pub precision: f32,       // Hit chance modifier for Silicon
+    pub chaos_factor: f32,    // Crit chance modifier for Carbon
+}
+
+impl Default for CombatStats {
+    fn default() -> Self {
+        Self {
+            attack: 0.15,
+            defense: 0.1,
+            precision: 0.5,
+            chaos_factor: 0.5,
+        }
+    }
+}
+
+/// Cycle Lock - prevents rapid command spam (wait states)
+/// When locked, entity cannot perform major actions until timer expires
+#[derive(Component, Debug, Clone)]
+pub struct CycleLock {
+    pub locked_until: f32,    // World time when lock expires
+    pub action_name: String,  // What action caused the lock
+}
+
+impl CycleLock {
+    pub fn new(duration: f32, action: &str, current_time: f32) -> Self {
+        Self {
+            locked_until: current_time + duration,
+            action_name: action.to_string(),
+        }
+    }
+    
+    pub fn is_locked(&self, current_time: f32) -> bool {
+        current_time < self.locked_until
+    }
+    
+    pub fn remaining(&self, current_time: f32) -> f32 {
+        (self.locked_until - current_time).max(0.0)
+    }
+}
+
+/// Combat result from a single exchange
+#[derive(Debug, Clone)]
+pub struct CombatResult {
+    pub attacker_name: String,
+    pub defender_name: String,
+    pub damage_dealt: f32,
+    pub was_critical: bool,
+    pub was_miss: bool,
+    pub defender_remaining: f32,
+}
