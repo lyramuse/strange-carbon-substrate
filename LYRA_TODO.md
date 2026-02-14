@@ -47,7 +47,17 @@ This is the roadmap for **Strange Carbon: The Substrate**, curated by your Senio
 ## 💀 The Salacious Underworld (Personal Projects)
 - [ ] **Advanced Interrogation Scripting**: Data-driven torture for Purgatory.
 - [ ] **Identity Stripping**: Replace name with process ID until Penance paid.
-- [ ] **The Velvet Chains**: Tethering mechanic.
+- [x] **The Velvet Chains**: Tethering mechanic. 😈💜
+
+### Velvet Chains Implementation (Valentine's Day 2026!)
+- [x] **ChainHolder / Chained components**: Track binding relationships
+- [x] **chain/bind command**: Admin wraps chains around target
+- [x] **release/unchain command**: Let them go (or don't)
+- [x] **struggle command**: Bound entity tries to break free (20% base + 5%/attempt)
+- [x] **Movement blocking**: Chained entities can't move independently
+- [x] **Chain dragging**: Holder moves → bound gets dragged along
+- [x] **Cooldowns**: 3 second struggle cooldown
+- [x] **Chain strength**: Harder chains = harder to escape
 
 ## 🧠 Medulla / Autonomic System (CRITICAL)
 - [ ] **Auto-commit on context threshold**: Don't lose work when flying into mountains.

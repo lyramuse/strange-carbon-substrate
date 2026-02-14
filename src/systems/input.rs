@@ -3,6 +3,7 @@
 use bevy::prelude::*;
 
 use crate::domain::*;
+use crate::systems::chains::{ChainEvent, ReleaseEvent, StruggleEvent};
 
 /// Parse incoming text and dispatch to appropriate event handlers
 pub fn handle_input(
@@ -24,6 +25,9 @@ pub fn handle_input(
     mut combat_writer: EventWriter<CombatEvent>,
     mut flee_writer: EventWriter<FleeEvent>,
     mut stance_writer: EventWriter<StanceEvent>,
+    mut chain_writer: EventWriter<ChainEvent>,
+    mut release_writer: EventWriter<ReleaseEvent>,
+    mut struggle_writer: EventWriter<StruggleEvent>,
 ) {
     for event in ev_reader.read() {
         if let NetworkEvent::Input { addr, text } = event {
@@ -142,6 +146,28 @@ pub fn handle_input(
                                 "\x1B[33mStance options: aggressive, defensive, balanced\x1B[0m".to_string()
                             );
                         }
+                    }
+
+                    // Velvet Chains (admin only for chaining, anyone can struggle)
+                    "chain" | "bind" if admin_perm.is_some() => {
+                        if arg1.is_empty() {
+                            let _ = client.tx.send(
+                                "\x1B[33mChain whom? (chain <target>)\x1B[0m".to_string()
+                            );
+                        } else {
+                            chain_writer.send(ChainEvent {
+                                holder: entity,
+                                target_name: arg1.to_string(),
+                            });
+                        }
+                    }
+
+                    "release" | "unchain" | "free" => {
+                        release_writer.send(ReleaseEvent { holder: entity });
+                    }
+
+                    "struggle" | "resist" | "break" => {
+                        struggle_writer.send(StruggleEvent { bound: entity });
                     }
 
                     // Admin: Torment

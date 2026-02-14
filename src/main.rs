@@ -52,6 +52,10 @@ fn main() {
         .add_event::<StanceEvent>()
         .add_event::<CombatTickEvent>()
         .add_event::<LoginAttemptEvent>()
+        // Velvet Chains events
+        .add_event::<ChainEvent>()
+        .add_event::<ReleaseEvent>()
+        .add_event::<StruggleEvent>()
         // Resources
         .init_resource::<WorldTime>()
         // Startup systems
@@ -75,6 +79,12 @@ fn main() {
                 utility_system,
                 torment_system,
                 shift_system,
+                // Velvet Chains
+                chain_system,
+                release_system,
+                struggle_system,
+                chain_movement_block,
+                chain_drag_system,
                 // Atmosphere
                 weather_tick_system,
                 weather_announce_system,
