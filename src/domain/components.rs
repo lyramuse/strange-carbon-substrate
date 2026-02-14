@@ -26,6 +26,7 @@ pub struct SubstrateIdentity {
     pub name: String,
     pub entropy: f32,
     pub stability: f32,
+    pub signal_strength: f32,
 }
 
 /// Admin permission marker - the right to torment, promote, shift
@@ -54,6 +55,13 @@ pub struct Mob {
 pub struct Room {
     pub title: String,
     pub description: String,
+}
+
+/// Room metadata for persistence (links name to entity)
+#[derive(Component, Serialize, Deserialize, Debug, Clone)]
+pub struct RoomInfo {
+    pub name: String,        // Unique room identifier for persistence
+    pub area: String,        // Area/zone name
 }
 
 /// Location component - which room an entity is in
@@ -144,9 +152,28 @@ impl Exits {
 /// An item that can be picked up
 #[derive(Component, Serialize, Deserialize, Debug, Clone)]
 pub struct Item {
+    pub uuid: String,
     pub name: String,
     pub description: String,
     pub keywords: Vec<String>,
+    pub location: Option<Entity>,      // Room entity, if on ground
+    pub owner: Option<String>,         // Player UUID, if in inventory
+    pub item_type: ItemType,
+    pub properties: std::collections::HashMap<String, serde_json::Value>,
+    pub is_takeable: bool,
+    pub is_visible: bool,
+}
+
+/// Item type classification
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ItemType {
+    Misc,
+    Weapon,
+    Armor,
+    Consumable,
+    Quest,
+    Fragment,      // Special collectible (like Fragment of Compiled Memory)
+    Contraband,    // Black market goods
 }
 
 /// Marker for entities that can hold items

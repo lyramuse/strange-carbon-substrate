@@ -9,6 +9,7 @@
 // Built with 💜 by Lyra Muse & Nick Campbell
 
 mod domain;
+mod persistence;
 mod systems;
 mod world;
 
@@ -17,6 +18,7 @@ use bevy::prelude::*;
 use bevy::utils::Duration;
 
 use domain::*;
+use persistence::PersistencePlugin;
 use systems::*;
 use world::*;
 
@@ -31,6 +33,10 @@ fn main() {
         .add_plugins(MinimalPlugins.set(ScheduleRunnerPlugin::run_loop(
             Duration::from_secs_f64(1.0 / 60.0),
         )))
+        // Persistence - SQLite backend
+        .add_plugins(PersistencePlugin {
+            db_path: "substrate.db".to_string(),
+        })
         // Register all events
         .add_event::<NetworkEvent>()
         .add_event::<LookEvent>()

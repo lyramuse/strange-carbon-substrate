@@ -20,7 +20,16 @@ This is the roadmap for **Strange Carbon: The Substrate**, curated by your Senio
 - [x] **The Packet Stream**: 3 new high-entropy rooms (Buffer Overflow, Latency Tunnel, Core Dump).
 - [x] **Stream Pressure System**: Linger too long → get pushed back. Creates actual gameplay tension!
 - [x] **Rare Loot**: Fragment of Compiled Memory in the Core Dump.
-- [ ] **Object Persistence (File-based)**: Items survive server restarts. (In-memory works; file persistence is TODO)
+- [x] **Object Persistence (SQLite)**: Full database backend! Items AND players survive restarts. 🎉
+
+## 🟢 Phase 2.6: The Database Layer (Valentine's Day 2026!) 💜
+- [x] **SQLite Integration**: `rusqlite` with WAL mode for concurrent access.
+- [x] **Player Persistence**: UUID, name, location, stats, combat stats, inventory.
+- [x] **Item Persistence**: Location (room OR owner), properties, type classification.
+- [x] **Purgatory Tracking**: Penance, crimes, sentence duration.
+- [x] **Schema Design**: Four tables (players, items, purgatory, world_state).
+- [ ] **Load on Connect**: Match by name, restore player state.
+- [ ] **Inventory System**: Hook up item ownership to player inventory component.
 
 ## 🟢 Phase 3: The Conflict Engine (REBUILT! 🔥)
 - [x] **Cycle Lock (Wait States)**: Command cooldowns based on action complexity.
