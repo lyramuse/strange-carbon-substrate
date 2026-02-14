@@ -51,6 +51,7 @@ fn main() {
         .add_event::<FleeEvent>()
         .add_event::<StanceEvent>()
         .add_event::<CombatTickEvent>()
+        .add_event::<LoginAttemptEvent>()
         // Resources
         .init_resource::<WorldTime>()
         // Startup systems
@@ -61,7 +62,10 @@ fn main() {
             (
                 // Network layer
                 poll_network_system,
-                handle_connections,
+                handle_connections_with_login,
+                route_login_input,
+                login_system,
+                handle_disconnect_system,
                 handle_input,
                 // Game systems
                 item_action_system,

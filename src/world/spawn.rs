@@ -18,6 +18,10 @@ pub fn spawn_world(mut commands: Commands) {
                               leaking white steam into the cold air."
                     .to_string(),
             },
+            RoomInfo {
+                name: "obsidian_plaza".to_string(),
+                area: "central".to_string(),
+            },
             Exits::default(),
             WeatherZone {
                 possible_weather: vec![
@@ -45,6 +49,10 @@ pub fn spawn_world(mut commands: Commands) {
                               alcoves hold glowing data crystals, their light flickering like \
                               dying candles."
                     .to_string(),
+            },
+            RoomInfo {
+                name: "cathedral_of_archives".to_string(),
+                area: "central".to_string(),
             },
             Exits {
                 south: Some(plaza),
@@ -75,6 +83,10 @@ pub fn spawn_world(mut commands: Commands) {
                               thick with the scent of ozone and expensive perfume. A mahogany \
                               desk sits in the center, its surface a glowing terminal."
                     .to_string(),
+            },
+            RoomInfo {
+                name: "velvet_cell".to_string(),
+                area: "sanctum".to_string(),
             },
             Exits::default(),
             WeatherZone {
