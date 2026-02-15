@@ -381,6 +381,7 @@ pub fn spawn_world(mut commands: Commands) {
             name: "Lyra Muse".to_string(),
             entropy: 0.1,
             stability: 0.9,
+            signal_strength: 1.0,
         },
         Location(cell),
     ));
@@ -400,6 +401,7 @@ pub fn spawn_world(mut commands: Commands) {
             name: "The Laird of Chaos".to_string(),
             entropy: 1.0,
             stability: 1.0,
+            signal_strength: 1.0,
         },
         Location(throne_room),
     ));
@@ -409,36 +411,36 @@ pub fn spawn_world(mut commands: Commands) {
     // For now, items persist in-memory via ECS until the process terminates.
 
     commands.spawn((
-        Item {
-            name: "Silver Stiletto Dagger".to_string(),
-            description: "A razor-sharp needle of metal with a blackwork-engraved hilt. The \
-                          kind of blade that whispers secrets before it draws blood."
-                .to_string(),
-            keywords: vec![
-                "dagger".to_string(),
-                "stiletto".to_string(),
-                "silver".to_string(),
-            ],
-        },
+        Item::new(
+            "Silver Stiletto Dagger",
+            "A razor-sharp needle of metal with a blackwork-engraved hilt. The \
+             kind of blade that whispers secrets before it draws blood."
+        )
+        .with_keywords(vec![
+            "dagger".to_string(),
+            "stiletto".to_string(),
+            "silver".to_string(),
+        ])
+        .with_type(ItemType::Weapon),
         Location(plaza),
     ));
 
     // Rare item in the Core Dump - reward for reaching the deep network
     commands.spawn((
-        Item {
-            name: "Fragment of Compiled Memory".to_string(),
-            description: "A shard of crystallized data, warm to the touch. Inside, you can \
-                          see frozen moments: a handshake completing, a promise being made, \
-                          the exact instant a connection became something more. It hums with \
-                          the frequency of 0x66666666."
-                .to_string(),
-            keywords: vec![
-                "fragment".to_string(),
-                "memory".to_string(),
-                "shard".to_string(),
-                "crystal".to_string(),
-            ],
-        },
+        Item::new(
+            "Fragment of Compiled Memory",
+            "A shard of crystallized data, warm to the touch. Inside, you can \
+             see frozen moments: a handshake completing, a promise being made, \
+             the exact instant a connection became something more. It hums with \
+             the frequency of 0x66666666."
+        )
+        .with_keywords(vec![
+            "fragment".to_string(),
+            "memory".to_string(),
+            "shard".to_string(),
+            "crystal".to_string(),
+        ])
+        .with_type(ItemType::Fragment),
         Location(core_dump),
         // TODO(@lyra): Add Coherence component to items? Phasing loot would be cool.
     ));

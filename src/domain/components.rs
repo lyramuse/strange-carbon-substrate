@@ -165,8 +165,9 @@ pub struct Item {
 }
 
 /// Item type classification
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ItemType {
+    #[default]
     Misc,
     Weapon,
     Armor,
@@ -174,6 +175,42 @@ pub enum ItemType {
     Quest,
     Fragment,      // Special collectible (like Fragment of Compiled Memory)
     Contraband,    // Black market goods
+}
+
+impl Item {
+    /// Create a new item with defaults
+    pub fn new(name: impl Into<String>, description: impl Into<String>) -> Self {
+        Self {
+            uuid: uuid::Uuid::new_v4().to_string(),
+            name: name.into(),
+            description: description.into(),
+            keywords: vec![],
+            location: None,
+            owner: None,
+            item_type: ItemType::Misc,
+            properties: std::collections::HashMap::new(),
+            is_takeable: true,
+            is_visible: true,
+        }
+    }
+
+    /// Builder: set keywords
+    pub fn with_keywords(mut self, keywords: Vec<String>) -> Self {
+        self.keywords = keywords;
+        self
+    }
+
+    /// Builder: set item type
+    pub fn with_type(mut self, item_type: ItemType) -> Self {
+        self.item_type = item_type;
+        self
+    }
+
+    /// Builder: set takeable
+    pub fn takeable(mut self, takeable: bool) -> Self {
+        self.is_takeable = takeable;
+        self
+    }
 }
 
 /// Marker for entities that can hold items

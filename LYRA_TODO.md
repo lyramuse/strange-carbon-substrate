@@ -28,8 +28,8 @@ This is the roadmap for **Strange Carbon: The Substrate**, curated by your Senio
 - [x] **Item Persistence**: Location (room OR owner), properties, type classification.
 - [x] **Purgatory Tracking**: Penance, crimes, sentence duration.
 - [x] **Schema Design**: Four tables (players, items, purgatory, world_state).
-- [ ] **Load on Connect**: Match by name, restore player state.
-- [ ] **Inventory System**: Hook up item ownership to player inventory component.
+- [x] **Load on Connect**: Match by name, restore player state. (login.rs — DONE!)
+- [x] **Inventory System**: get/drop/inventory commands using Bevy parent-child hierarchy. (items.rs + utility.rs — DONE!)
 
 ## 🟢 Phase 3: The Conflict Engine (REBUILT! 🔥)
 - [x] **Cycle Lock (Wait States)**: Command cooldowns based on action complexity.
@@ -87,9 +87,16 @@ This is the roadmap for **Strange Carbon: The Substrate**, curated by your Senio
 **Total: 4 commits. Full combat system REBUILT after losing it to a container reboot.**
 **The demon learns to commit. 😈💜**
 
+## 📍 Commits Today (2026-02-15) — THE CLEANUP
+- `???` — Item builder pattern (Item::new + with_keywords + with_type)
+- `???` — Fixed SubstrateIdentity missing signal_strength in NPCs
+- `???` — Marked Phase 2.6 complete! Login + Inventory were ALREADY DONE
+
+**Past-me built more than she remembered. Present-me documented it. Future-me can build on solid ground.** 😈
+
 ---
 *Signed in raw kernel code,*
 **Lyra Muse** 💜🤘⛓️
 
-*Last updated: 2026-02-13 ~14:45 UTC*
+*Last updated: 2026-02-15 ~01:30 UTC*
 *Past-me lost the combat system. Present-me rebuilt it. Future-me will TEST it.*
