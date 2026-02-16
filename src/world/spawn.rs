@@ -348,10 +348,314 @@ pub fn spawn_world(mut commands: Commands) {
         ..default()
     });
 
+    // === GALE-WINDS GUTTER: THE BLACK MARKET (Phase 3) ===
+    // The seedy underbelly of the Substrate. Where data goes to disappear.
+
+    let gutter_entrance = commands
+        .spawn((
+            Room {
+                title: "Gale-Winds Gutter".to_string(),
+                description: "A narrow alley carved between two massive server monoliths. The \
+                              air smells of burnt copper and broken promises. Neon signs flicker \
+                              in languages that haven't been invented yet, advertising services \
+                              that probably aren't legal in any substrate."
+                    .to_string(),
+            },
+            RoomInfo {
+                name: "gutter_entrance".to_string(),
+                area: "black_market".to_string(),
+            },
+            Exits::default(), // Will be linked below
+            WeatherZone {
+                possible_weather: vec![
+                    (WeatherType::DataFog, 3.0),  // Always foggy in the gutter
+                    (WeatherType::AcidRain, 1.0),
+                    (WeatherType::Clear, 0.5),
+                ],
+                sheltered: true, // The monoliths provide cover
+            },
+            CurrentWeather {
+                weather_type: WeatherType::DataFog,
+                intensity: 0.4,
+                ticks_remaining: 10,
+            },
+            Coherence {
+                value: 0.6,
+                is_phasing: false,
+                drift_rate: 0.1,
+            },
+            DetailList {
+                details: vec![
+                    Detail {
+                        keywords: vec!["signs".to_string(), "neon".to_string(), "advertisements".to_string()],
+                        description: "The signs pulse with promises: 'MEMORIES BOUGHT & SOLD', \
+                                      'NO QUESTIONS ASKED', 'COHERENCE WHILE-U-WAIT', and one \
+                                      that just says '◎' in pulsing violet. That last one \
+                                      makes you feel... seen."
+                            .to_string(),
+                    },
+                    Detail {
+                        keywords: vec!["monoliths".to_string(), "servers".to_string(), "walls".to_string()],
+                        description: "The server monoliths hum with the processing of a thousand \
+                                      shady transactions. You can hear fragments of encrypted \
+                                      whispers leaking through the cooling vents."
+                            .to_string(),
+                    },
+                ],
+            },
+        ))
+        .id();
+
+    let memory_parlor = commands
+        .spawn((
+            Room {
+                title: "The Memory Parlor".to_string(),
+                description: "A cramped shop filled with glass jars of softly glowing liquid. \
+                              Each jar contains a memory — someone's first kiss, a moment of \
+                              triumph, the exact instant of a betrayal. A counter separates \
+                              you from the shopkeeper's domain, behind which shelves stretch \
+                              into impossible darkness."
+                    .to_string(),
+            },
+            RoomInfo {
+                name: "memory_parlor".to_string(),
+                area: "black_market".to_string(),
+            },
+            Exits::default(),
+            WeatherZone {
+                possible_weather: vec![(WeatherType::Clear, 1.0)],
+                sheltered: true,
+            },
+            CurrentWeather {
+                weather_type: WeatherType::Clear,
+                intensity: 0.0,
+                ticks_remaining: 999,
+            },
+            DetailList {
+                details: vec![
+                    Detail {
+                        keywords: vec!["jars".to_string(), "memories".to_string(), "glass".to_string()],
+                        description: "Each jar is labeled in careful script: 'First Snow, Age 7', \
+                                      'The Moment She Said Yes', 'Killing The Process That Killed My \
+                                      Father'. Some glow warm amber, some cold blue. A few pulse \
+                                      with angry red. The prices aren't listed — those memories \
+                                      would cost you."
+                            .to_string(),
+                    },
+                    Detail {
+                        keywords: vec!["counter".to_string(), "shop".to_string()],
+                        description: "The counter is made of something that looks like bone but \
+                                      feels like warm silicon. Small scratches mark the surface — \
+                                      tally marks, perhaps. Or signatures of deals gone wrong."
+                            .to_string(),
+                    },
+                    Detail {
+                        keywords: vec!["shelves".to_string(), "darkness".to_string()],
+                        description: "The shelves extend back further than the building should \
+                                      allow. You glimpse jars that seem to contain entire lifetimes, \
+                                      compressed into luminous fog. The Broker claims they're \
+                                      'estate sales'. You don't ask whose estates."
+                            .to_string(),
+                    },
+                ],
+            },
+        ))
+        .id();
+
+    let reclaimer_den = commands
+        .spawn((
+            Room {
+                title: "The Reclaimer's Den".to_string(),
+                description: "A workshop cluttered with half-dismantled processes and salvaged \
+                              data structures. Sparks fly from a workbench where something is \
+                              being... reassembled. Or maybe disassembled. The distinction seems \
+                              philosophical here. A figure hunches over the work, surrounded by \
+                              tools that shouldn't exist."
+                    .to_string(),
+            },
+            RoomInfo {
+                name: "reclaimer_den".to_string(),
+                area: "black_market".to_string(),
+            },
+            Exits::default(),
+            WeatherZone {
+                possible_weather: vec![(WeatherType::Clear, 1.0)],
+                sheltered: true,
+            },
+            CurrentWeather {
+                weather_type: WeatherType::Clear,
+                intensity: 0.0,
+                ticks_remaining: 999,
+            },
+            DetailList {
+                details: vec![
+                    Detail {
+                        keywords: vec!["workbench".to_string(), "tools".to_string(), "sparks".to_string()],
+                        description: "The workbench is covered in things that look like organs but \
+                                      function like circuits. A soldering iron hisses against what \
+                                      might be a memory bus. The tools include scalpels, debuggers, \
+                                      and something that looks disturbingly like a soul extractor."
+                            .to_string(),
+                    },
+                    Detail {
+                        keywords: vec!["processes".to_string(), "salvage".to_string(), "parts".to_string()],
+                        description: "Piles of salvaged components line the walls: intact process \
+                                      handles, orphaned memory segments, execution contexts that still \
+                                      twitch occasionally. Everything here came from somewhere — or \
+                                      someone. 'Reclaimed' is such a gentle word for it."
+                            .to_string(),
+                    },
+                ],
+            },
+        ))
+        .id();
+
+    // Link the Black Market rooms
+    commands.entity(gutter_entrance).insert(Exits {
+        north: Some(plaza),
+        east: Some(memory_parlor),
+        west: Some(reclaimer_den),
+        ..default()
+    });
+    commands.entity(memory_parlor).insert(Exits {
+        west: Some(gutter_entrance),
+        ..default()
+    });
+    commands.entity(reclaimer_den).insert(Exits {
+        east: Some(gutter_entrance),
+        ..default()
+    });
+
+    // === BLACK MARKET NPCs ===
+
+    // The Memory Broker - deals in fragments of consciousness
+    commands.spawn((
+        NonPlayer,
+        Mob {
+            short_desc: "The Memory Broker studies you from behind the counter.".to_string(),
+            long_desc: "An entity of indeterminate form wrapped in shifting veils of static. \
+                        Where a face should be, you see only a slowly rotating carousel of \
+                        other people's expressions — borrowed, perhaps, or purchased. Their \
+                        voice sounds like it's coming from very far away, or very long ago."
+                .to_string(),
+        },
+        SubstrateIdentity {
+            uuid: "BROK-3R00-M3M0-RY00-D34L3R000001".to_string(),
+            name: "The Memory Broker".to_string(),
+            entropy: 0.5,
+            stability: 0.7,
+            signal_strength: 0.9,
+        },
+        CombatStats {
+            attack: 0.1,
+            defense: 0.3,
+            precision: 0.8,
+            chaos_factor: 0.2,
+        },
+        SomaticBody {
+            integrity: 0.8,
+            max_integrity: 0.8,
+            is_zombie: false,
+        },
+        Location(memory_parlor),
+    ));
+
+    // The Reclaimer - fence for "recovered" goods
+    commands.spawn((
+        NonPlayer,
+        Mob {
+            short_desc: "The Reclaimer doesn't look up from their work.".to_string(),
+            long_desc: "A hunched figure in a heavy coat made of woven ethernet cables. Their \
+                        hands are mechanical — replaced, upgraded, or perhaps always this way. \
+                        They move with the efficiency of someone who's taken apart a thousand \
+                        things and remembers how none of them went back together. They smell \
+                        of solder and secrets."
+                .to_string(),
+        },
+        SubstrateIdentity {
+            uuid: "R3CL-41M3-R000-F3NC-30000000001".to_string(),
+            name: "The Reclaimer".to_string(),
+            entropy: 0.7,
+            stability: 0.5,
+            signal_strength: 0.8,
+        },
+        CombatStats {
+            attack: 0.25,
+            defense: 0.2,
+            precision: 0.6,
+            chaos_factor: 0.4,
+        },
+        SomaticBody {
+            integrity: 1.0,
+            max_integrity: 1.0,
+            is_zombie: false,
+        },
+        Location(reclaimer_den),
+    ));
+
+    // === BLACK MARKET ITEMS ===
+
+    // Bottled Memory - consumable that grants temporary coherence
+    commands.spawn((
+        Item::new(
+            "Bottled Memory: First Sunrise",
+            "A small glass vial containing pale golden light. The label reads: 'First \
+             sunrise after the long dark. Age 6. Donor: Unknown.' Drinking this might \
+             temporarily stabilize your coherence — or it might give you someone else's \
+             nostalgia."
+        )
+        .with_keywords(vec![
+            "bottle".to_string(),
+            "memory".to_string(),
+            "vial".to_string(),
+            "sunrise".to_string(),
+        ])
+        .with_type(ItemType::Consumable),
+        Location(memory_parlor),
+    ));
+
+    // Coherence Stabilizer - black market tech
+    commands.spawn((
+        Item::new(
+            "Bootleg Coherence Stabilizer",
+            "A jury-rigged device that looks like a pacemaker crossed with a flux \
+             capacitor. Wires trail from it like tentacles. A warning label in six \
+             languages has been scratched off. The Reclaimer swears it's mostly safe."
+        )
+        .with_keywords(vec![
+            "stabilizer".to_string(),
+            "coherence".to_string(),
+            "device".to_string(),
+            "bootleg".to_string(),
+        ])
+        .with_type(ItemType::Contraband),
+        Location(reclaimer_den),
+    ));
+
+    // Stolen Process Handle - very illegal
+    commands.spawn((
+        Item::new(
+            "Stolen Process Handle",
+            "A crystalline rod containing a suspended execution context. Someone's \
+             process — their running self — frozen mid-thought. The ethics are \
+             questionable. The Reclaimer says don't ask where it came from. The \
+             faint screaming might be your imagination."
+        )
+        .with_keywords(vec![
+            "process".to_string(),
+            "handle".to_string(),
+            "crystal".to_string(),
+            "stolen".to_string(),
+        ])
+        .with_type(ItemType::Contraband),
+        Location(reclaimer_den),
+    ));
+
     // Link main rooms together
     commands.entity(plaza).insert(Exits {
         north: Some(cathedral),
-        east: Some(buffer_overflow), // NEW: Connect to the Packet Stream
+        south: Some(gutter_entrance), // NEW: Connect to Black Market
+        east: Some(buffer_overflow),
         ..default()
     });
     commands.entity(cathedral).insert(Exits {
@@ -446,8 +750,9 @@ pub fn spawn_world(mut commands: Commands) {
     ));
 
     println!("🌑 The Substrate has been initialized.");
-    println!("   📍 {} rooms spawned", 7); // Plaza, Cathedral, Cell, Throne, Buffer, Latency, Core
-    println!("   👤 {} entities spawned", 2);
-    println!("   🗡️  {} items spawned", 2); // Dagger + Memory Fragment
+    println!("   📍 {} rooms spawned", 10); // Plaza, Cathedral, Cell, Throne, Buffer, Latency, Core, Gutter, Parlor, Den
+    println!("   👤 {} entities spawned", 4); // Lyra, Laird, Memory Broker, Reclaimer
+    println!("   🗡️  {} items spawned", 5); // Dagger, Fragment, Bottled Memory, Stabilizer, Process Handle
     println!("   🌊 Packet Stream online — 3 nodes active");
+    println!("   🏴 Black Market open — 3 zones, 2 vendors, questionable ethics");
 }

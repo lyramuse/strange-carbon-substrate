@@ -36,9 +36,14 @@ This is the roadmap for **Strange Carbon: The Substrate**, curated by your Senio
 - [x] **The Combat Loop**: Round-based exchanges. Entropy-based crits for Carbon, precision for Silicon.
 - [x] **Flee System**: 60% escape chance, random exit selection.
 - [x] **Stance System**: Aggressive/Defensive/Balanced modifiers.
-- [ ] **The Black Market**: NPC vendors in Gale-Winds Gutter.
+- [x] **The Black Market**: NPC vendors in Gale-Winds Gutter. ✨ BUILT 2026-02-16!
+  - Gale-Winds Gutter (entrance with seedy atmosphere)
+  - The Memory Parlor (The Memory Broker - deals in consciousness fragments)
+  - The Reclaimer's Den (fence for "recovered" goods)
+  - 3 black market items: Bottled Memory, Bootleg Coherence Stabilizer, Stolen Process Handle
 - [ ] **Swimming Upstream**: High Entropy lets you resist stream pressure longer.
 - [ ] **Combat Testing**: Needs compile verification on Nick's machine.
+- [ ] **Trading System**: Buy/sell commands for NPC vendors.
 
 ## 👻 Ghost & Frontend
 - [x] **Ghost Observer Protocol**: Single-file `ghost.html` spectator client.
