@@ -142,3 +142,10 @@ pub struct SellEvent {
 pub struct ListEvent {
     pub entity: Entity,
 }
+
+/// Use a consumable item
+#[derive(Event)]
+pub struct UseItemEvent {
+    pub entity: Entity,
+    pub item_keyword: String,
+}

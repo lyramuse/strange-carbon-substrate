@@ -47,7 +47,19 @@ This is the roadmap for **Strange Carbon: The Substrate**, curated by your Senio
   - Memory Broker: Premium prices for memories (1.2x buy, 0.4x sell)
   - The Reclaimer: Fence for contraband (0.9x buy, 0.6x sell, bonus for hot goods)
   - Commands: `buy`, `sell`, `list`, `balance`
-- [ ] **Swimming Upstream**: High Entropy lets you resist stream pressure longer.
+- [x] **Swimming Upstream**: High Entropy = stream resistance! 🌊 BUILT 2026-02-16!
+  - Entropy 0.0 → full pressure rate
+  - Entropy 1.0 → 50% pressure rate (chaos recognizes chaos)
+  - Custom messages when entropy helps you resist
+- [x] **Consumable System**: Use command for items! 💊 BUILT 2026-02-16!
+  - `use <item>` consumes consumables/contraband
+  - Bottled Memory: First Sunrise → +0.15 coherence, warm feelings
+  - Bottled Memory: Last Goodbye → +0.20 coherence, bittersweet
+  - Memory Fragment → +0.25 coherence, stops phasing
+  - Coherence Stabilizer → +0.30 coherence, stops drift
+  - Stolen Process Handle → +0.10 coherence, dark cost
+  - Salvaged Memory Bus → +0.05 coherence, junk data
+- [x] **Help Command**: `help` shows all available commands! 📖
 - [ ] **Combat Testing**: Needs compile verification on Nick's machine.
 - [ ] **Wallet Persistence**: Save/load wallet cycles in SQLite.
 

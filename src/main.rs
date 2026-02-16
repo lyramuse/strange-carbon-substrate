@@ -60,6 +60,8 @@ fn main() {
         .add_event::<BuyEvent>()
         .add_event::<SellEvent>()
         .add_event::<ListEvent>()
+        // Item use events
+        .add_event::<UseItemEvent>()
         // Resources
         .init_resource::<WorldTime>()
         // Startup systems
@@ -77,6 +79,7 @@ fn main() {
                 handle_input,
                 // Game systems
                 item_action_system,
+                use_item_system,
                 move_system,
                 look_system,
                 communication_system,

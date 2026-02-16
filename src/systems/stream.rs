@@ -3,7 +3,9 @@
 // The Packet Stream pushes back. Linger too long and you'll be ejected
 // back toward safety. Keep moving or get swept away.
 //
-// TODO(@lyra): Add "swimming upstream" mechanic - high Entropy lets you resist longer
+// Swimming Upstream: High Entropy entities can resist the pressure longer.
+// Entropy 0.0 = normal pressure, Entropy 1.0 = pressure reduced by 50%
+// "Chaos recognizes chaos. The stream parts for those who embrace it."
 
 use bevy::prelude::*;
 
@@ -25,24 +27,45 @@ pub fn stream_pressure_system(
     for (entity, location, mut pressure, identity, maybe_client) in query_entities.iter_mut() {
         // Check if current room is a StreamZone
         if let Ok((zone, maybe_room)) = query_zones.get(location.0) {
-            // Apply pressure
-            pressure.current += zone.pressure_rate * time.delta_seconds();
+            // Swimming Upstream: High entropy reduces pressure buildup
+            // At entropy 0.0: full pressure rate
+            // At entropy 1.0: 50% pressure rate (halved)
+            let entropy_resistance = 1.0 - (identity.entropy * 0.5);
+            let effective_rate = zone.pressure_rate * entropy_resistance;
+            
+            // Apply pressure (reduced by entropy)
+            pressure.current += effective_rate * time.delta_seconds();
 
             // Warn at 50% and 75%
             if let Some(client) = maybe_client {
-                let prev = pressure.current - (zone.pressure_rate * time.delta_seconds());
+                let prev = pressure.current - (effective_rate * time.delta_seconds());
                 
                 if prev < 0.5 && pressure.current >= 0.5 {
-                    let _ = client.tx.send(
-                        "\x1B[33mThe stream pressure intensifies. You feel yourself being pushed back.\x1B[0m"
-                            .to_string(),
-                    );
+                    // Different message if entropy is helping
+                    if identity.entropy > 0.3 {
+                        let _ = client.tx.send(
+                            "\x1B[33mThe stream pressure builds, but your entropy helps you resist.\x1B[0m"
+                                .to_string(),
+                        );
+                    } else {
+                        let _ = client.tx.send(
+                            "\x1B[33mThe stream pressure intensifies. You feel yourself being pushed back.\x1B[0m"
+                                .to_string(),
+                        );
+                    }
                 }
                 if prev < 0.75 && pressure.current >= 0.75 {
-                    let _ = client.tx.send(
-                        "\x1B[31mWARNING: Stream pressure critical! Move deeper or retreat!\x1B[0m"
-                            .to_string(),
-                    );
+                    if identity.entropy > 0.5 {
+                        let _ = client.tx.send(
+                            "\x1B[31mStream pressure critical! Your chaos buys you time, but not forever!\x1B[0m"
+                                .to_string(),
+                        );
+                    } else {
+                        let _ = client.tx.send(
+                            "\x1B[31mWARNING: Stream pressure critical! Move deeper or retreat!\x1B[0m"
+                                .to_string(),
+                        );
+                    }
                 }
             }
 
