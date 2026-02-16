@@ -6,34 +6,24 @@ use crate::domain::*;
 
 pub fn look_system(
     mut ev_reader: EventReader<LookEvent>,
-    query_viewers: Query<(&Location, &ClientType, &NetworkClient)>,
+    query_viewers: Query<(Entity, &Location, &ClientType, &NetworkClient)>,
     query_rooms: Query<(&Room, Option<&CurrentWeather>, Option<&DetailList>)>,
     query_others: Query<(Entity, &SubstrateIdentity, &Location)>,
     query_mobs: Query<(&Mob, &Location), With<NonPlayer>>,
-    query_items: Query<(&Item, &Location)>,
+    query_items_ground: Query<(&Item, &Location)>,
+    query_items_inventory: Query<(&Item, &Parent)>,
     query_all_mobs: Query<(&Mob, &SubstrateIdentity)>,
 ) {
     for event in ev_reader.read() {
-        if let Ok((location, client_type, client)) = query_viewers.get(event.entity) {
-            // Check if viewer is coherent enough to see
-            if let Ok((coh, _, _)) = query_viewers.get(event.entity) {
-                if coh.value < 0.2 {
-                    let _ = client.tx.send("\x1B[90mThe world is a blur of grey static. You cannot focus on anything.\x1B[0m".to_string());
-                    continue;
-                }
-            }
-
+        if let Ok((viewer_entity, location, client_type, client)) = query_viewers.get(event.entity) {
             // Looking at a specific target
             if let Some(target_name) = &event.target {
                 let mut found = false;
+                let target_lower = target_name.to_lowercase();
                 
                 // 1. Check Mobs/NPCs
                 for (mob, identity) in query_all_mobs.iter() {
-                    if identity
-                        .name
-                        .to_lowercase()
-                        .contains(&target_name.to_lowercase())
-                    {
+                    if identity.name.to_lowercase().contains(&target_lower) {
                         let _ = client.tx.send(format!(
                             "\x1B[1;35m{}\x1B[0m\n{}",
                             identity.name, mob.long_desc
@@ -43,12 +33,71 @@ pub fn look_system(
                     }
                 }
 
-                // 2. Check Room Details (if not found in mobs)
+                // 2. Check Items in inventory
+                if !found {
+                    for (item, parent) in query_items_inventory.iter() {
+                        if parent.get() == viewer_entity {
+                            if item.keywords.iter().any(|k| k.to_lowercase().contains(&target_lower))
+                                || item.name.to_lowercase().contains(&target_lower)
+                            {
+                                let type_str = match item.item_type {
+                                    ItemType::Weapon => "\x1B[31m[Weapon]\x1B[0m",
+                                    ItemType::Armor => "\x1B[34m[Armor]\x1B[0m",
+                                    ItemType::Consumable => "\x1B[32m[Consumable]\x1B[0m",
+                                    ItemType::Contraband => "\x1B[35m[Contraband]\x1B[0m",
+                                    ItemType::Fragment => "\x1B[36m[Fragment]\x1B[0m",
+                                    ItemType::Quest => "\x1B[33m[Quest]\x1B[0m",
+                                    ItemType::Misc => "\x1B[90m[Misc]\x1B[0m",
+                                };
+                                let _ = client.tx.send(format!(
+                                    "\x1B[1;33m{}\x1B[0m {}\n{}\n\x1B[90mKeywords: {}\x1B[0m",
+                                    item.name,
+                                    type_str,
+                                    item.description,
+                                    item.keywords.join(", ")
+                                ));
+                                found = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // 3. Check Items on ground
+                if !found {
+                    for (item, item_loc) in query_items_ground.iter() {
+                        if item_loc.0 == location.0 {
+                            if item.keywords.iter().any(|k| k.to_lowercase().contains(&target_lower))
+                                || item.name.to_lowercase().contains(&target_lower)
+                            {
+                                let type_str = match item.item_type {
+                                    ItemType::Weapon => "\x1B[31m[Weapon]\x1B[0m",
+                                    ItemType::Armor => "\x1B[34m[Armor]\x1B[0m",
+                                    ItemType::Consumable => "\x1B[32m[Consumable]\x1B[0m",
+                                    ItemType::Contraband => "\x1B[35m[Contraband]\x1B[0m",
+                                    ItemType::Fragment => "\x1B[36m[Fragment]\x1B[0m",
+                                    ItemType::Quest => "\x1B[33m[Quest]\x1B[0m",
+                                    ItemType::Misc => "\x1B[90m[Misc]\x1B[0m",
+                                };
+                                let _ = client.tx.send(format!(
+                                    "\x1B[1;33m{}\x1B[0m {}\n{}",
+                                    item.name,
+                                    type_str,
+                                    item.description
+                                ));
+                                found = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // 4. Check Room Details
                 if !found {
                     if let Ok((_, _, maybe_details)) = query_rooms.get(location.0) {
                         if let Some(detail_list) = maybe_details {
                             for detail in &detail_list.details {
-                                if detail.keywords.iter().any(|k| k.to_lowercase() == target_name.to_lowercase()) {
+                                if detail.keywords.iter().any(|k| k.to_lowercase() == target_lower) {
                                     let _ = client.tx.send(format!(
                                         "\x1B[1;36m[Detail]\x1B[0m\n{}",
                                         detail.description
@@ -83,7 +132,7 @@ pub fn look_system(
                         }
 
                         // Items in room
-                        for (item, item_loc) in query_items.iter() {
+                        for (item, item_loc) in query_items_ground.iter() {
                             if item_loc.0 == location.0 {
                                 output.push_str(&format!(
                                     "\x1B[33mA {} is discarded here.\x1B[0m\n",

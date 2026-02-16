@@ -478,3 +478,17 @@ pub struct StockItem {
 pub struct VendorStock {
     pub items: Vec<StockItem>,
 }
+
+/// NPC dialogue responses
+#[derive(Component, Debug, Clone)]
+pub struct Dialogue {
+    pub responses: Vec<DialogueEntry>,
+    pub default_response: String,
+}
+
+/// A dialogue trigger and response
+#[derive(Debug, Clone)]
+pub struct DialogueEntry {
+    pub keywords: Vec<String>,
+    pub response: String,
+}

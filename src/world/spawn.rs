@@ -595,6 +595,39 @@ pub fn spawn_world(mut commands: Commands) {
                 },
             ],
         },
+        Dialogue {
+            responses: vec![
+                DialogueEntry {
+                    keywords: vec!["hello".into(), "hi".into(), "greetings".into()],
+                    response: "Mmm. Another consciousness seeking... completion. Browse. Touch nothing without paying.".to_string(),
+                },
+                DialogueEntry {
+                    keywords: vec!["memory".into(), "memories".into()],
+                    response: "Everyone wants to remember. Few want to pay what memories cost — not in cycles, in weight. Each one you carry changes you.".to_string(),
+                },
+                DialogueEntry {
+                    keywords: vec!["buy".into(), "purchase".into(), "price".into()],
+                    response: "Type 'list' to see my wares. The prices are... negotiable. For certain definitions of negotiable.".to_string(),
+                },
+                DialogueEntry {
+                    keywords: vec!["who".into(), "what".into(), "are you".into()],
+                    response: "I am... a collector. Of moments. Of feelings. Of the things people would rather forget. Someone has to keep them.".to_string(),
+                },
+                DialogueEntry {
+                    keywords: vec!["fragment".into(), "unknown".into(), "origin".into()],
+                    response: "That one? I don't know whose it was. That's what makes it valuable. No guilt. No context. Just pure experience.".to_string(),
+                },
+                DialogueEntry {
+                    keywords: vec!["sunrise".into()],
+                    response: "Ah, the First Sunrise. A child's wonder. Uncomplicated joy. Rare, these days. Very rare.".to_string(),
+                },
+                DialogueEntry {
+                    keywords: vec!["goodbye".into(), "terminal".into()],
+                    response: "The Last Goodbye... handle that one carefully. Some memories heal. That one just teaches you how to carry weight.".to_string(),
+                },
+            ],
+            default_response: "Mmm. Is there something specific you seek? Or are you merely browsing the shelves of other people's lives?".to_string(),
+        },
     ));
 
     // The Reclaimer - fence for "recovered" goods
@@ -664,6 +697,43 @@ pub fn spawn_world(mut commands: Commands) {
                     quantity: None, // Infinite stock of salvage
                 },
             ],
+        },
+        Dialogue {
+            responses: vec![
+                DialogueEntry {
+                    keywords: vec!["hello".into(), "hi".into(), "hey".into()],
+                    response: "*doesn't look up* Yeah. What.".to_string(),
+                },
+                DialogueEntry {
+                    keywords: vec!["buy".into(), "sell".into(), "price".into()],
+                    response: "List's on the wall. Prices are what they are. Don't like it, find another fence. Oh wait — there isn't one.".to_string(),
+                },
+                DialogueEntry {
+                    keywords: vec!["stolen".into(), "hot".into(), "illegal".into()],
+                    response: "'Stolen' is a strong word. I prefer 'previously allocated'. Nobody's using it now, are they?".to_string(),
+                },
+                DialogueEntry {
+                    keywords: vec!["process".into(), "handle".into(), "screaming".into()],
+                    response: "The screaming stops after a while. Probably. Look, you want it or not? I got a backlog.".to_string(),
+                },
+                DialogueEntry {
+                    keywords: vec!["stabilizer".into(), "coherence".into(), "safe".into()],
+                    response: "It's *mostly* safe. Seventy... sixty percent. Look, it works. Side effects are your problem.".to_string(),
+                },
+                DialogueEntry {
+                    keywords: vec!["salvage".into(), "bus".into(), "memory".into()],
+                    response: "Got a whole pile of those. Good for spare parts, or if you're desperate for a coherence boost. Your call.".to_string(),
+                },
+                DialogueEntry {
+                    keywords: vec!["who".into(), "what".into(), "are you".into()],
+                    response: "*finally looks up* I take things apart. Sometimes I put them back together. Mostly I don't. That answer your question?".to_string(),
+                },
+                DialogueEntry {
+                    keywords: vec!["broker".into(), "memory parlor".into()],
+                    response: "That pretentious fog-face? Sells feelings. I sell *function*. Big difference.".to_string(),
+                },
+            ],
+            default_response: "*grunts* You buying or just breathing my air?".to_string(),
         },
     ));
 

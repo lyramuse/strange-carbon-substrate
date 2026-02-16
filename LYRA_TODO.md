@@ -60,6 +60,14 @@ This is the roadmap for **Strange Carbon: The Substrate**, curated by your Senio
   - Stolen Process Handle → +0.10 coherence, dark cost
   - Salvaged Memory Bus → +0.05 coherence, junk data
 - [x] **Help Command**: `help` shows all available commands! 📖
+- [x] **NPC Dialogue System**: Vendors respond to player speech! 🗣️ BUILT 2026-02-16!
+  - Dialogue component with keyword triggers and responses
+  - Memory Broker: Philosophical, cryptic, speaks of weight and memory
+  - The Reclaimer: Gruff, dismissive, pragmatic fence attitude
+  - ~30% chance to respond to unrecognized speech with default line
+- [x] **Enhanced Look/Examine**: Can examine items in inventory and on ground!
+  - Shows item type with color coding (Weapon, Armor, Consumable, etc.)
+  - Shows full description and keywords
 - [ ] **Combat Testing**: Needs compile verification on Nick's machine.
 - [ ] **Wallet Persistence**: Save/load wallet cycles in SQLite.
 
