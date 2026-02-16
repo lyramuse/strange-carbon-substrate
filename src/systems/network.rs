@@ -75,7 +75,7 @@ pub fn setup_network_system(mut commands: Commands) {
         });
     });
 
-    commands.insert_non_send_resource(event_rx);
+    commands.insert_resource(event_rx);
 }
 
 /// Poll the network channel and emit events into Bevy
@@ -84,7 +84,7 @@ pub fn poll_network_system(
     mut ev_writer: EventWriter<NetworkEvent>,
 ) {
     while let Ok(event) = event_rx.try_recv() {
-        ev_writer.write(event);
+        ev_writer.send(event);
     }
 }
 
@@ -123,11 +123,13 @@ pub fn handle_connections(
                         },
                         entropy: 0.8,
                         stability: 0.3,
+                        signal_strength: 1.0,
                     },
                     Location(start_room),
                     Inventory,
                     SomaticBody {
                         integrity: 1.0,
+                        max_integrity: 1.0,
                         is_zombie: false,
                     },
                 ))
@@ -156,7 +158,7 @@ pub fn handle_connections(
                 "\x1B[1;35mConsciousness digitized. Welcome to the Obsidian Plaza.\x1B[0m"
                     .to_string(),
             );
-            look_writer.write(LookEvent {
+            look_writer.send(LookEvent {
                 entity: player,
                 target: None,
             });

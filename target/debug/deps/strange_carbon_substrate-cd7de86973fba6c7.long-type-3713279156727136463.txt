@@ -1,0 +1,1 @@
+bevy::prelude::Query<'_, '_, (&mut domain::components::SomaticBody, &domain::components::SubstrateIdentity, &domain::components::NetworkClient)>

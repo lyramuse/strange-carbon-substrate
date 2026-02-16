@@ -3,6 +3,7 @@
 use bevy::prelude::*;
 
 use crate::domain::*;
+use crate::systems::somatic::handle_abide;
 
 pub fn utility_system(
     mut commands: Commands,

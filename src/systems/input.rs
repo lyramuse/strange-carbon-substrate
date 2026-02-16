@@ -62,13 +62,13 @@ pub fn handle_input(
                         } else {
                             Some(arg1.to_string())
                         };
-                        look_writer.write(LookEvent { entity, target });
+                        look_writer.send(LookEvent { entity, target });
                     }
 
                     // Movement
                     "north" | "n" | "south" | "s" | "east" | "e" | "west" | "w" | "up" | "u"
                     | "down" | "d" => {
-                        move_writer.write(MoveEvent {
+                        move_writer.send(MoveEvent {
                             entity,
                             direction: cmd,
                         });
@@ -76,14 +76,14 @@ pub fn handle_input(
 
                     // Communication
                     "say" => {
-                        comm_writer.write(CommunicationEvent {
+                        comm_writer.send(CommunicationEvent {
                             sender: entity,
                             message: format!("{} {}", arg1, arg2).trim().to_string(),
                             is_emote: false,
                         });
                     }
                     "emote" => {
-                        comm_writer.write(CommunicationEvent {
+                        comm_writer.send(CommunicationEvent {
                             sender: entity,
                             message: format!("{} {}", arg1, arg2).trim().to_string(),
                             is_emote: true,
@@ -92,7 +92,7 @@ pub fn handle_input(
 
                     // Items
                     "get" | "take" | "drop" => {
-                        action_writer.write(ActionEvent {
+                        action_writer.send(ActionEvent {
                             entity,
                             action: cmd,
                             target: arg1.to_string(),
@@ -101,7 +101,7 @@ pub fn handle_input(
 
                     // Utility
                     "inventory" | "i" | "score" | "who" | "promote" | "demote" | "link" | "weather" | "abide" => {
-                        utility_writer.write(UtilityEvent {
+                        utility_writer.send(UtilityEvent {
                             entity,
                             command: cmd,
                             args: format!("{} {}", arg1, arg2).trim().to_string(),
@@ -110,7 +110,7 @@ pub fn handle_input(
 
                     // Admin: Shift
                     "shift" | "substantiate" if admin_perm.is_some() => {
-                        shift_writer.write(ShiftEvent { entity });
+                        shift_writer.send(ShiftEvent { entity });
                     }
 
                     // Combat commands
@@ -120,7 +120,7 @@ pub fn handle_input(
                                 "\x1B[33mAttack whom? (attack <target>)\x1B[0m".to_string()
                             );
                         } else {
-                            combat_writer.write(CombatEvent {
+                            combat_writer.send(CombatEvent {
                                 attacker: entity,
                                 target_name: arg1.to_string(),
                             });
@@ -128,7 +128,7 @@ pub fn handle_input(
                     }
 
                     "flee" | "escape" | "run" => {
-                        flee_writer.write(FleeEvent { entity });
+                        flee_writer.send(FleeEvent { entity });
                     }
 
                     "stance" => {
@@ -140,7 +140,7 @@ pub fn handle_input(
                         };
                         
                         if let Some(stance) = new_stance {
-                            stance_writer.write(StanceEvent { entity, new_stance: stance });
+                            stance_writer.send(StanceEvent { entity, new_stance: stance });
                         } else {
                             let _ = client.tx.send(
                                 "\x1B[33mStance options: aggressive, defensive, balanced\x1B[0m".to_string()
@@ -179,7 +179,7 @@ pub fn handle_input(
                             })
                             .map(|(te, _)| te)
                         {
-                            torment_writer.write(TormentEvent {
+                            torment_writer.send(TormentEvent {
                                 victim: target_ent,
                                 tormentor: entity,
                                 intensity: 0.1,
@@ -193,7 +193,7 @@ pub fn handle_input(
                         let emote_msg = format!("{} {} {}", &cmd[1..], arg1, arg2)
                             .trim()
                             .to_string();
-                        comm_writer.write(CommunicationEvent {
+                        comm_writer.send(CommunicationEvent {
                             sender: entity,
                             message: emote_msg,
                             is_emote: true,

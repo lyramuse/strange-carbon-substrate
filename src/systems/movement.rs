@@ -15,7 +15,7 @@ pub fn move_system(
             if let Ok(exits) = query_rooms.get(location.0) {
                 if let Some(target_room) = exits.get(&event.direction) {
                     location.0 = target_room;
-                    look_writer.write(LookEvent {
+                    look_writer.send(LookEvent {
                         entity: event.entity,
                         target: None,
                     });

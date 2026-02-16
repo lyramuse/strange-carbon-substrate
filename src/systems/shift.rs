@@ -29,7 +29,7 @@ pub fn shift_system(
                     curr_id.name, partner_id.name
                 ));
 
-                look_writer.write(LookEvent {
+                look_writer.send(LookEvent {
                     entity: link.partner,
                     target: None,
                 });
