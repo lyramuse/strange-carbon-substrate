@@ -56,6 +56,10 @@ fn main() {
         .add_event::<ChainEvent>()
         .add_event::<ReleaseEvent>()
         .add_event::<StruggleEvent>()
+        // Trading events
+        .add_event::<BuyEvent>()
+        .add_event::<SellEvent>()
+        .add_event::<ListEvent>()
         // Resources
         .init_resource::<WorldTime>()
         // Startup systems
@@ -98,6 +102,11 @@ fn main() {
                 flee_system,
                 stance_system,
                 cycle_lock_cleanup_system,
+                // Trading
+                buy_system,
+                sell_system,
+                list_system,
+                balance_system,
             )
                 .chain(),
         )

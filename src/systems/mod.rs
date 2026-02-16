@@ -16,10 +16,12 @@ mod stream;
 mod combat;
 mod login;
 mod chains;
+mod trade;
 
 pub use network::*;
 pub use login::*;
 pub use chains::*;
+pub use trade::*;
 pub use input::*;
 pub use movement::*;
 pub use look::*;

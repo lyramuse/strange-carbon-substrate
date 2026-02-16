@@ -28,6 +28,9 @@ pub fn handle_input(
     mut chain_writer: EventWriter<ChainEvent>,
     mut release_writer: EventWriter<ReleaseEvent>,
     mut struggle_writer: EventWriter<StruggleEvent>,
+    mut buy_writer: EventWriter<BuyEvent>,
+    mut sell_writer: EventWriter<SellEvent>,
+    mut list_writer: EventWriter<ListEvent>,
 ) {
     for event in ev_reader.read() {
         if let NetworkEvent::Input { addr, text } = event {
@@ -99,8 +102,39 @@ pub fn handle_input(
                         });
                     }
 
+                    // Trading
+                    "buy" | "purchase" => {
+                        if arg1.is_empty() {
+                            let _ = client.tx.send(
+                                "\x1B[33mBuy what? (buy <item>)\x1B[0m".to_string()
+                            );
+                        } else {
+                            buy_writer.send(BuyEvent {
+                                buyer: entity,
+                                item_keyword: arg1.to_string(),
+                            });
+                        }
+                    }
+
+                    "sell" => {
+                        if arg1.is_empty() {
+                            let _ = client.tx.send(
+                                "\x1B[33mSell what? (sell <item>)\x1B[0m".to_string()
+                            );
+                        } else {
+                            sell_writer.send(SellEvent {
+                                seller: entity,
+                                item_keyword: arg1.to_string(),
+                            });
+                        }
+                    }
+
+                    "list" | "browse" | "wares" => {
+                        list_writer.send(ListEvent { entity });
+                    }
+
                     // Utility
-                    "inventory" | "i" | "score" | "who" | "promote" | "demote" | "link" | "weather" | "abide" => {
+                    "inventory" | "i" | "score" | "who" | "promote" | "demote" | "link" | "weather" | "abide" | "balance" | "bal" | "money" => {
                         utility_writer.send(UtilityEvent {
                             entity,
                             command: cmd,

@@ -118,3 +118,27 @@ pub struct CombatTickEvent {
     pub combatant_a: Entity,
     pub combatant_b: Entity,
 }
+
+// ============================================================================
+// Trading Events - The Black Market Economy
+// ============================================================================
+
+/// Buy an item from a vendor
+#[derive(Event)]
+pub struct BuyEvent {
+    pub buyer: Entity,
+    pub item_keyword: String,
+}
+
+/// Sell an item to a vendor
+#[derive(Event)]
+pub struct SellEvent {
+    pub seller: Entity,
+    pub item_keyword: String,
+}
+
+/// List vendor's stock
+#[derive(Event)]
+pub struct ListEvent {
+    pub entity: Entity,
+}

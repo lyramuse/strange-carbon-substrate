@@ -558,6 +558,43 @@ pub fn spawn_world(mut commands: Commands) {
             is_zombie: false,
         },
         Location(memory_parlor),
+        // Vendor components
+        Vendor {
+            buy_multiplier: 1.2,   // Premium prices for memories
+            sell_multiplier: 0.4,  // Doesn't pay well for your junk
+            vendor_type: VendorType::Specialist,
+        },
+        VendorStock {
+            items: vec![
+                StockItem {
+                    item_name: "Bottled Memory: First Sunrise".to_string(),
+                    description: "A small glass vial containing pale golden light. Drinking this \
+                                  might temporarily stabilize your coherence.".to_string(),
+                    keywords: vec!["bottle".into(), "memory".into(), "vial".into(), "sunrise".into()],
+                    item_type: ItemType::Consumable,
+                    base_price: 50,
+                    quantity: Some(3),
+                },
+                StockItem {
+                    item_name: "Bottled Memory: Last Goodbye".to_string(),
+                    description: "A vial of deep blue-grey. The label simply says 'Terminal'. \
+                                  Use with caution — this one carries weight.".to_string(),
+                    keywords: vec!["bottle".into(), "memory".into(), "vial".into(), "goodbye".into()],
+                    item_type: ItemType::Consumable,
+                    base_price: 75,
+                    quantity: Some(2),
+                },
+                StockItem {
+                    item_name: "Memory Fragment: Unknown Origin".to_string(),
+                    description: "A crystallized shard of someone's experience. The Broker won't \
+                                  say whose. It pulses with a frequency you almost recognize.".to_string(),
+                    keywords: vec!["fragment".into(), "memory".into(), "shard".into(), "crystal".into()],
+                    item_type: ItemType::Fragment,
+                    base_price: 150,
+                    quantity: Some(1),
+                },
+            ],
+        },
     ));
 
     // The Reclaimer - fence for "recovered" goods
@@ -591,6 +628,43 @@ pub fn spawn_world(mut commands: Commands) {
             is_zombie: false,
         },
         Location(reclaimer_den),
+        // Vendor components - fence who buys hot goods
+        Vendor {
+            buy_multiplier: 0.9,   // Slightly cheaper than the Broker
+            sell_multiplier: 0.6,  // Better prices for your stolen goods
+            vendor_type: VendorType::Fence,
+        },
+        VendorStock {
+            items: vec![
+                StockItem {
+                    item_name: "Bootleg Coherence Stabilizer".to_string(),
+                    description: "A jury-rigged device that looks like a pacemaker crossed with \
+                                  a flux capacitor. The Reclaimer swears it's mostly safe.".to_string(),
+                    keywords: vec!["stabilizer".into(), "coherence".into(), "device".into(), "bootleg".into()],
+                    item_type: ItemType::Contraband,
+                    base_price: 80,
+                    quantity: Some(2),
+                },
+                StockItem {
+                    item_name: "Stolen Process Handle".to_string(),
+                    description: "A crystalline rod containing a suspended execution context. \
+                                  Don't ask where it came from. The faint screaming is normal.".to_string(),
+                    keywords: vec!["process".into(), "handle".into(), "crystal".into(), "stolen".into()],
+                    item_type: ItemType::Contraband,
+                    base_price: 120,
+                    quantity: Some(1),
+                },
+                StockItem {
+                    item_name: "Salvaged Memory Bus".to_string(),
+                    description: "Ripped from something that used to think. Might still have \
+                                  some data on it. The Reclaimer didn't wipe it. That's extra.".to_string(),
+                    keywords: vec!["bus".into(), "memory".into(), "salvaged".into()],
+                    item_type: ItemType::Contraband,
+                    base_price: 45,
+                    quantity: None, // Infinite stock of salvage
+                },
+            ],
+        },
     ));
 
     // === BLACK MARKET ITEMS ===

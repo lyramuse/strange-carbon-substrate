@@ -41,9 +41,15 @@ This is the roadmap for **Strange Carbon: The Substrate**, curated by your Senio
   - The Memory Parlor (The Memory Broker - deals in consciousness fragments)
   - The Reclaimer's Den (fence for "recovered" goods)
   - 3 black market items: Bottled Memory, Bootleg Coherence Stabilizer, Stolen Process Handle
+- [x] **Trading System**: Buy/sell/list commands! 💰 BUILT 2026-02-16!
+  - Currency: Cycles (⚡) — computational currency
+  - New players start with 100 cycles
+  - Memory Broker: Premium prices for memories (1.2x buy, 0.4x sell)
+  - The Reclaimer: Fence for contraband (0.9x buy, 0.6x sell, bonus for hot goods)
+  - Commands: `buy`, `sell`, `list`, `balance`
 - [ ] **Swimming Upstream**: High Entropy lets you resist stream pressure longer.
 - [ ] **Combat Testing**: Needs compile verification on Nick's machine.
-- [ ] **Trading System**: Buy/sell commands for NPC vendors.
+- [ ] **Wallet Persistence**: Save/load wallet cycles in SQLite.
 
 ## 👻 Ghost & Frontend
 - [x] **Ghost Observer Protocol**: Single-file `ghost.html` spectator client.

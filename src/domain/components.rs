@@ -419,3 +419,62 @@ pub struct CombatResult {
     pub was_miss: bool,
     pub defender_remaining: f32,
 }
+
+// ============================================================================
+// Trading System - The Black Market Economy
+// ============================================================================
+
+/// Wallet - holds currency (computational cycles)
+#[derive(Component, Serialize, Deserialize, Debug, Clone)]
+pub struct Wallet {
+    pub cycles: u32,  // Computational cycles as currency
+}
+
+impl Default for Wallet {
+    fn default() -> Self {
+        Self { cycles: 100 }  // Starting balance
+    }
+}
+
+/// Vendor marker - NPCs that can trade
+#[derive(Component, Debug, Clone)]
+pub struct Vendor {
+    pub buy_multiplier: f32,   // Price multiplier when buying from vendor (1.0 = base)
+    pub sell_multiplier: f32,  // Price multiplier when selling TO vendor (0.5 = half price)
+    pub vendor_type: VendorType,
+}
+
+/// Types of vendors with different specialties
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VendorType {
+    Merchant,    // Standard vendor, fair prices
+    Fence,       // Buys stolen/contraband, lower prices
+    Specialist,  // Sells specific items, premium prices
+}
+
+impl Default for Vendor {
+    fn default() -> Self {
+        Self {
+            buy_multiplier: 1.0,
+            sell_multiplier: 0.5,
+            vendor_type: VendorType::Merchant,
+        }
+    }
+}
+
+/// Stock item with price
+#[derive(Debug, Clone)]
+pub struct StockItem {
+    pub item_name: String,
+    pub description: String,
+    pub keywords: Vec<String>,
+    pub item_type: ItemType,
+    pub base_price: u32,
+    pub quantity: Option<u32>,  // None = infinite stock
+}
+
+/// Vendor's stock - what they sell
+#[derive(Component, Debug, Clone, Default)]
+pub struct VendorStock {
+    pub items: Vec<StockItem>,
+}

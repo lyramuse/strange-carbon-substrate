@@ -119,6 +119,7 @@ fn restore_player(
             is_zombie: false,
         },
         ClientType::Carbon,
+        Wallet::default(),  // TODO: Persist wallet in database
     ));
 
     // Restore combat stats if present
@@ -184,6 +185,7 @@ fn create_new_player(
         SomaticBody::default(),
         CombatStats::default(),
         ClientType::Carbon,
+        Wallet::default(),  // Start with 100 cycles
     ));
 
     let _ = client.tx.send(format!(
